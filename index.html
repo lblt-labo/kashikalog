@@ -1,0 +1,1998 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#2b6777">
+<title>かしかろぐ｜つらさの可視化＆記録アプリ</title>
+<link rel="manifest" href="./manifest.json">
+<link rel="apple-touch-icon" href="./icon-192.png">
+<style>
+  :root{
+    --color-bg:#f4f7f8;
+    --color-surface:#ffffff;
+    --color-border:#dde3e6;
+    --color-text:#20343a;
+    --color-sub:#5c7075;
+    --color-accent:#2b6777;
+    --color-accent-dark:#1c4c58;
+    --color-danger:#a83244;
+    --color-focus:#0f6fb0;
+    --radius:14px;
+    --tap-min:48px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    font-family:"Hiragino Kaku Gothic ProN","Hiragino Sans","Yu Gothic",-apple-system,BlinkMacSystemFont,sans-serif;
+    background:var(--color-bg);
+    color:var(--color-text);
+    line-height:1.6;
+    -webkit-tap-highlight-color:transparent;
+    padding-bottom:2rem;
+  }
+  button{font-family:inherit;}
+  a{color:inherit;}
+  .visually-hidden{
+    position:absolute; width:1px; height:1px; overflow:hidden;
+    clip:rect(0 0 0 0); white-space:nowrap;
+  }
+
+  /* ===== ヘッダー ===== */
+  header.app-header{
+    background:var(--color-accent);
+    color:#fff;
+    padding:0.9rem 1rem;
+    position:sticky;
+    top:0;
+    z-index:50;
+    box-shadow:0 2px 6px rgba(0,0,0,0.12);
+  }
+  .header-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:0.6rem;
+    max-width:1200px;
+    margin:0 auto;
+    flex-wrap:wrap;
+  }
+  .app-title{margin:0;font-size:1.25rem;font-weight:700;}
+  .app-sub{margin:0.1rem 0 0;font-size:0.75rem;opacity:0.9;}
+  .header-actions{
+    display:flex;
+    align-items:center;
+    gap:0.5rem;
+    flex-wrap:wrap;
+  }
+  .mode-switch{
+    display:flex;
+    align-items:center;
+    background:rgba(255,255,255,0.15);
+    border-radius:999px;
+    padding:4px;
+    gap:2px;
+  }
+  .mode-switch button{
+    border:none;
+    background:transparent;
+    color:#fff;
+    padding:0.5rem 0.8rem;
+    border-radius:999px;
+    font-size:0.8rem;
+    font-weight:600;
+    cursor:pointer;
+    min-height:var(--tap-min);
+  }
+  .mode-switch button[aria-pressed="true"]{
+    background:#fff;
+    color:var(--color-accent-dark);
+  }
+  .icon-btn{
+    border:1px solid rgba(255,255,255,0.6);
+    background:rgba(255,255,255,0.08);
+    color:#fff;
+    padding:0.5rem 0.9rem;
+    border-radius:10px;
+    font-size:0.8rem;
+    font-weight:600;
+    cursor:pointer;
+    min-height:var(--tap-min);
+    display:inline-flex;
+    align-items:center;
+    gap:0.35rem;
+  }
+  .icon-btn:hover{background:rgba(255,255,255,0.2);}
+
+  /* ===== レイアウト ===== */
+  main{
+    max-width:1200px;
+    margin:0 auto;
+    padding:1rem;
+    display:grid;
+    grid-template-columns:1fr;
+    gap:1rem;
+  }
+  @media (min-width:900px){
+    main{
+      grid-template-columns:minmax(320px,1fr) minmax(360px,1.1fr);
+      align-items:start;
+    }
+  }
+  .card{
+    background:var(--color-surface);
+    border:1px solid var(--color-border);
+    border-radius:var(--radius);
+    padding:1rem;
+    margin-bottom:1rem;
+  }
+  .card h2{
+    margin:0 0 0.7rem;
+    font-size:1rem;
+    color:var(--color-accent-dark);
+    display:flex;
+    align-items:center;
+    gap:0.4rem;
+  }
+  .section-note{font-size:0.78rem;color:var(--color-sub);margin:0 0 0.6rem;}
+
+  /* ===== フレックス複製・日時 ===== */
+  .top-actions{
+    display:flex;
+    flex-wrap:wrap;
+    gap:0.5rem;
+    margin-bottom:0.8rem;
+  }
+  .btn{
+    border:none;
+    border-radius:10px;
+    padding:0.7rem 1rem;
+    font-size:0.9rem;
+    font-weight:700;
+    cursor:pointer;
+    min-height:var(--tap-min);
+  }
+  .btn-primary{background:var(--color-accent);color:#fff;}
+  .btn-primary:active{background:var(--color-accent-dark);}
+  .btn-outline{background:#fff;border:2px solid var(--color-accent);color:var(--color-accent-dark);}
+  .btn-ghost{background:#eef3f4;color:var(--color-text);}
+  .btn-danger{background:var(--color-danger);color:#fff;}
+  .btn:disabled{opacity:0.5;cursor:not-allowed;}
+
+  .datetime-row{
+    display:flex;
+    gap:0.5rem;
+    flex-wrap:wrap;
+    align-items:center;
+    margin-bottom:0.9rem;
+  }
+  .datetime-row input[type="datetime-local"]{
+    flex:1;
+    min-width:180px;
+    padding:0.6rem;
+    border:1px solid var(--color-border);
+    border-radius:8px;
+    font-size:0.95rem;
+    min-height:var(--tap-min);
+  }
+
+  /* ===== 人体マップ ===== */
+  .bodymap-tabs{
+    display:flex;
+    gap:0.4rem;
+    margin-bottom:0.6rem;
+  }
+  .bodymap-tabs button{
+    flex:1;
+    border:1px solid var(--color-border);
+    background:#fff;
+    border-radius:8px;
+    padding:0.5rem;
+    font-weight:700;
+    cursor:pointer;
+    min-height:44px;
+  }
+  .bodymap-tabs button[aria-pressed="true"]{
+    background:var(--color-accent);
+    color:#fff;
+    border-color:var(--color-accent);
+  }
+  .bodymap-wrap{
+    display:flex;
+    justify-content:center;
+    background:#f0f5f6;
+    border-radius:10px;
+    padding:0.6rem;
+    margin-bottom:0.7rem;
+  }
+  .bodymap-svg{max-width:220px;width:100%;height:auto;touch-action:manipulation;}
+  .bodypart{
+    fill:#bcd7de;
+    stroke:#7fa5ae;
+    stroke-width:1.5;
+    cursor:pointer;
+    transition:fill 0.15s;
+  }
+  .bodypart:hover{fill:#93bcc6;}
+  .bodypart.selected{
+    fill:var(--color-accent);
+    stroke:var(--color-accent-dark);
+  }
+  .bodymap-label{
+    font-size:9px;
+    fill:#1c4c58;
+    pointer-events:none;
+    text-anchor:middle;
+  }
+  .extra-parts{
+    display:flex;
+    gap:0.5rem;
+    flex-wrap:wrap;
+  }
+  .extra-parts button{
+    flex:1;
+    min-width:130px;
+    min-height:var(--tap-min);
+    border-radius:10px;
+    border:2px solid var(--color-border);
+    background:#fff;
+    font-weight:700;
+    font-size:0.9rem;
+    cursor:pointer;
+    padding:0.6rem;
+  }
+  .extra-parts button.selected{
+    border-color:var(--color-accent);
+    background:#e5f1f3;
+    color:var(--color-accent-dark);
+  }
+
+  .selected-part-display{
+    margin-top:0.7rem;
+    padding:0.6rem 0.8rem;
+    background:#eef6f7;
+    border-radius:10px;
+    font-size:0.9rem;
+    min-height:44px;
+    display:flex;
+    align-items:center;
+    flex-wrap:wrap;
+    gap:0.4rem;
+  }
+  .chip{
+    display:inline-flex;
+    align-items:center;
+    gap:0.3rem;
+    background:#fff;
+    border:1px solid var(--color-accent);
+    color:var(--color-accent-dark);
+    border-radius:999px;
+    padding:0.25rem 0.7rem;
+    font-size:0.82rem;
+  }
+  .chip button{
+    border:none;background:transparent;color:var(--color-danger);
+    font-weight:900;cursor:pointer;font-size:0.9rem;padding:0 0.15rem;
+  }
+
+  /* ===== つらさスケール ===== */
+  .intensity-grid{
+    display:grid;
+    grid-template-columns:repeat(5,1fr);
+    gap:0.45rem;
+    margin-bottom:0.5rem;
+  }
+  .intensity-btn{
+    min-height:56px;
+    border-radius:10px;
+    border:2px solid transparent;
+    color:#fff;
+    font-weight:800;
+    font-size:1.05rem;
+    cursor:pointer;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    line-height:1.1;
+  }
+  .intensity-btn .face{font-size:1.1rem;display:none;}
+  .intensity-btn[aria-pressed="true"]{
+    border-color:#20343a;
+    box-shadow:0 0 0 3px rgba(32,52,58,0.25) inset;
+  }
+  .intensity-btn[aria-pressed="true"]::after{
+    content:"✓選択中";
+    font-size:0.6rem;
+    font-weight:700;
+  }
+  .assist-mode .intensity-grid{grid-template-columns:repeat(2,1fr);}
+  .assist-mode .intensity-btn{min-height:84px;font-size:1.5rem;}
+  .assist-mode .intensity-btn .face{display:block;font-size:1.8rem;}
+
+  /* ===== コーピング・天候・メモ ===== */
+  .checkbox-grid{
+    display:flex;
+    flex-wrap:wrap;
+    gap:0.5rem;
+  }
+  .check-chip{
+    display:inline-flex;
+    align-items:center;
+    gap:0.4rem;
+    border:2px solid var(--color-border);
+    border-radius:999px;
+    padding:0.55rem 0.9rem;
+    cursor:pointer;
+    font-size:0.88rem;
+    min-height:44px;
+    background:#fff;
+  }
+  .check-chip input{width:18px;height:18px;}
+  .check-chip.checked{
+    border-color:var(--color-accent);
+    background:#e5f1f3;
+    color:var(--color-accent-dark);
+    font-weight:700;
+  }
+  .weather-grid{display:flex;gap:0.5rem;flex-wrap:wrap;}
+  .weather-btn{
+    min-width:60px;min-height:var(--tap-min);
+    border-radius:10px;border:2px solid var(--color-border);
+    background:#fff;font-size:1.3rem;cursor:pointer;
+    display:flex;flex-direction:column;align-items:center;gap:0.15rem;padding:0.4rem;
+  }
+  .weather-btn small{font-size:0.65rem;color:var(--color-sub);}
+  .weather-btn[aria-pressed="true"]{border-color:var(--color-accent);background:#e5f1f3;}
+  textarea{
+    width:100%;min-height:70px;padding:0.6rem;
+    border:1px solid var(--color-border);border-radius:8px;
+    font-size:0.92rem;font-family:inherit;resize:vertical;
+  }
+  .assist-mode .memo-block{display:none;}
+
+  .save-row{margin-top:1rem;display:flex;gap:0.6rem;flex-wrap:wrap;}
+  .save-row .btn{flex:1;min-width:140px;}
+
+  /* ===== 履歴・グラフ ===== */
+  .toggle-row{display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.7rem;}
+  .toggle-row button{
+    border:2px solid var(--color-border);background:#fff;border-radius:999px;
+    padding:0.5rem 1rem;font-weight:700;font-size:0.85rem;cursor:pointer;min-height:44px;
+  }
+  .toggle-row button[aria-pressed="true"]{border-color:var(--color-accent);background:#e5f1f3;color:var(--color-accent-dark);}
+  select{
+    padding:0.5rem;border:1px solid var(--color-border);border-radius:8px;font-size:0.88rem;min-height:44px;
+  }
+  canvas#chartCanvas{width:100%;height:240px;background:#fbfdfd;border-radius:10px;border:1px solid var(--color-border);}
+  .legend{display:flex;flex-wrap:wrap;gap:0.5rem;margin-top:0.5rem;font-size:0.78rem;}
+  .legend-item{display:flex;align-items:center;gap:0.3rem;}
+  .legend-swatch{width:14px;height:14px;border-radius:3px;flex-shrink:0;}
+
+  .history-list{max-height:340px;overflow-y:auto;}
+  .history-item{
+    border:1px solid var(--color-border);border-radius:10px;
+    padding:0.6rem 0.8rem;margin-bottom:0.5rem;
+    display:flex;justify-content:space-between;align-items:flex-start;gap:0.5rem;
+  }
+  .history-main{font-size:0.88rem;}
+  .history-time{font-size:0.75rem;color:var(--color-sub);}
+  .history-badge{
+    display:inline-block;color:#fff;border-radius:6px;
+    padding:0.1rem 0.5rem;font-size:0.75rem;font-weight:800;margin-right:0.3rem;
+  }
+  .history-del{background:none;border:none;color:var(--color-danger);font-size:1.1rem;cursor:pointer;min-width:44px;min-height:44px;}
+  .empty-state{color:var(--color-sub);font-size:0.88rem;text-align:center;padding:1.2rem 0;}
+
+  /* ===== 診察モード ===== */
+  .exam-mode header.app-header,.exam-mode .no-exam{display:none !important;}
+  .exam-mode main{grid-template-columns:1fr !important;}
+  .exam-banner{
+    display:none;
+    position:sticky;top:0;z-index:60;background:#20343a;color:#fff;
+    padding:0.6rem 1rem;justify-content:space-between;align-items:center;font-size:0.85rem;
+  }
+  .exam-mode .exam-banner{display:flex;}
+
+  /* ===== モーダル ===== */
+  .modal-overlay{
+    position:fixed;inset:0;background:rgba(20,30,32,0.55);
+    display:none;align-items:center;justify-content:center;padding:1rem;z-index:200;
+  }
+  .modal-overlay.open{display:flex;}
+  .modal-box{
+    background:#fff;border-radius:var(--radius);padding:1.2rem;
+    max-width:480px;width:100%;max-height:85vh;overflow-y:auto;
+  }
+  .modal-box h3{margin-top:0;color:var(--color-accent-dark);}
+  .modal-box h4{margin:1rem 0 0.5rem;color:var(--color-accent-dark);font-size:0.92rem;}
+  .modal-close-row{text-align:right;margin-top:1rem;}
+  .symptom-pick-grid{display:flex;flex-wrap:wrap;gap:0.5rem;margin:0.7rem 0;}
+  .symptom-pick{
+    border:2px solid var(--color-border);background:#fff;border-radius:999px;
+    padding:0.5rem 0.9rem;font-size:0.85rem;cursor:pointer;min-height:44px;
+  }
+  .symptom-pick.selected{border-color:var(--color-accent);background:#e5f1f3;color:var(--color-accent-dark);font-weight:700;}
+  .custom-add-row{display:flex;gap:0.4rem;margin-top:0.6rem;}
+  .custom-add-row input{flex:1;padding:0.5rem;border:1px solid var(--color-border);border-radius:8px;min-height:44px;}
+
+  .toast{
+    position:fixed;bottom:1.2rem;left:50%;transform:translateX(-50%);
+    background:#20343a;color:#fff;padding:0.7rem 1.1rem;border-radius:999px;
+    font-size:0.85rem;z-index:300;opacity:0;transition:opacity 0.25s;pointer-events:none;
+  }
+  .toast.show{opacity:1;}
+
+  /* ===== パスコードロック画面 ===== */
+  .lock-overlay{
+    position:fixed;inset:0;background:#16262b;color:#fff;
+    display:none;align-items:center;justify-content:center;z-index:500;padding:1.2rem;
+  }
+  .lock-box{width:100%;max-width:320px;text-align:center;}
+  .lock-title{font-size:1.15rem;font-weight:700;margin:0 0 1rem;}
+  .lock-dots{display:flex;justify-content:center;gap:0.6rem;margin-bottom:0.6rem;}
+  .lock-dot{
+    width:16px;height:16px;border-radius:50%;
+    border:2px solid #fff;background:transparent;
+  }
+  .lock-dot.filled{background:#fff;}
+  .lock-error{min-height:1.4rem;color:#ffb3b3;font-size:0.82rem;margin:0 0 0.6rem;font-weight:700;}
+  .lock-keypad{
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:0.6rem;
+    margin:0.8rem 0 1.2rem;
+  }
+  .lock-key{
+    min-height:64px;
+    border-radius:12px;
+    border:1px solid rgba(255,255,255,0.4);
+    background:rgba(255,255,255,0.08);
+    color:#fff;
+    font-size:1.4rem;
+    font-weight:700;
+    cursor:pointer;
+  }
+  .lock-key:active{background:rgba(255,255,255,0.25);}
+  .lock-reset-link{
+    background:none;border:none;color:#bcd7de;text-decoration:underline;
+    font-size:0.82rem;cursor:pointer;padding:0.6rem;min-height:44px;
+  }
+
+  footer{max-width:1200px;margin:0 auto;padding:0 1rem;}
+
+  @media print{
+    header.app-header,.no-print,.modal-overlay,.exam-banner,.lock-overlay{display:none !important;}
+    body{background:#fff;}
+    main{display:block;padding:0;max-width:100%;}
+    .card{border:1px solid #999;break-inside:avoid;margin-bottom:0.5rem;padding:0.6rem;}
+    canvas#chartCanvas{height:180px !important;}
+    .history-list{max-height:none;overflow:visible;}
+    @page{size:A4;margin:12mm;}
+  }
+</style>
+</head>
+<body>
+
+<!-- ===== パスコードロック画面 ===== -->
+<div class="lock-overlay" id="lockOverlay">
+  <div class="lock-box">
+    <p class="lock-title" data-normal="🔒 ロック中です" data-assist="🔒 かぎが かかっています">🔒 ロック中です</p>
+    <div class="lock-dots" id="lockDots"></div>
+    <p class="lock-error" id="lockError"></p>
+    <div class="lock-keypad" id="lockKeypad"></div>
+    <p class="section-note" style="color:#cfe3e7;" data-normal="初期パスコードは「0000」です（設定画面でいつでも変更できます）" data-assist="はじめの ばんごうは「0000」だよ（せっていで かえられるよ）">初期パスコードは「0000」です（設定画面でいつでも変更できます）</p>
+    <button type="button" class="lock-reset-link" id="lockResetLink" data-normal="パスコードを忘れた方はこちら（データ初期化）" data-assist="ばんごうを わすれたら ここ（きろくが きえるよ）">パスコードを忘れた方はこちら（データ初期化）</button>
+  </div>
+</div>
+
+<div class="exam-banner no-print">
+  <span data-normal="🩺 診察モード表示中（画面は自動で消灯しません）" data-assist="🩺 せんせいに みせています">🩺 診察モード表示中（画面は自動で消灯しません）</span>
+  <button class="icon-btn" id="examExitBtn" type="button" data-normal="診察モードを終了" data-assist="おわる">診察モードを終了</button>
+</div>
+
+<header class="app-header no-exam">
+  <div class="header-row">
+    <div>
+      <p class="app-title">かしかろぐ</p>
+      <p class="app-sub" data-normal="医療機関と患者をつなぐ「つらさ」の可視化＆記録アプリ" data-assist="びょういんの せんせいに つたえる きろくアプリ">医療機関と患者をつなぐ「つらさ」の可視化＆記録アプリ</p>
+    </div>
+    <div class="header-actions">
+      <div class="mode-switch" role="group" aria-label="表示モード切り替え">
+        <button type="button" id="modeNormalBtn" aria-pressed="true">通常モード</button>
+        <button type="button" id="modeAssistBtn" aria-pressed="false">かんたんモード</button>
+      </div>
+      <button type="button" class="icon-btn" id="examEnterBtn" data-normal="🩺 診察モード" data-assist="🩺 せんせい（いしゃ）に みせる">🩺 診察モード</button>
+      <button type="button" class="icon-btn" id="settingsBtn" data-normal="⚙️ 設定" data-assist="⚙️ せってい">⚙️ 設定</button>
+    </div>
+  </div>
+</header>
+
+<main id="mainArea">
+
+  <!-- ===== 左カラム：記録入力 ===== -->
+  <section class="card no-exam" aria-labelledby="inputHeading">
+    <h2 id="inputHeading" data-normal="📝 いまのつらさを記録" data-assist="📝 きろくする">📝 いまのつらさを記録</h2>
+    <div class="top-actions">
+      <button type="button" class="btn btn-outline" id="duplicateLastBtn" data-normal="🔁 前回の記録を複製" data-assist="🔁 まえと おなじ内容にする">🔁 前回の記録を複製</button>
+      <button type="button" class="btn btn-ghost" id="resetFormBtn" data-normal="🧹 入力をクリア" data-assist="🧹 けす">🧹 入力をクリア</button>
+    </div>
+
+    <div class="datetime-row">
+      <label for="recordDatetime" class="visually-hidden">記録日時</label>
+      <input type="datetime-local" id="recordDatetime">
+    </div>
+
+    <div class="bodymap-tabs" role="group" aria-label="人体マップ表裏切り替え">
+      <button type="button" id="bodyFrontTab" aria-pressed="true" data-normal="からだ（正面）" data-assist="からだ（まえ）">からだ（正面）</button>
+      <button type="button" id="bodyBackTab" aria-pressed="false" data-normal="からだ（背面）" data-assist="からだ（うしろ）">からだ（背面）</button>
+    </div>
+
+    <div class="bodymap-wrap">
+      <svg id="bodySvgFront" class="bodymap-svg" viewBox="0 0 200 320" role="img" aria-label="人体マップ（正面）">
+        <circle class="bodypart" data-part="頭" cx="100" cy="35" r="28"></circle>
+        <text class="bodymap-label" data-part="頭" x="100" y="39">頭</text>
+        <rect class="bodypart" data-part="首・肩" x="55" y="65" width="90" height="26" rx="10"></rect>
+        <text class="bodymap-label" data-part="首・肩" x="100" y="82">首・肩</text>
+        <rect class="bodypart" data-part="胸・お腹" x="60" y="95" width="80" height="90" rx="14"></rect>
+        <text class="bodymap-label" data-part="胸・お腹" x="100" y="143">胸・お腹</text>
+        <rect class="bodypart" data-part="腕・手" x="20" y="98" width="34" height="120" rx="14"></rect>
+        <text class="bodymap-label" data-part="腕・手" x="37" y="160">腕・手</text>
+        <rect class="bodypart" data-part="腕・手" x="146" y="98" width="34" height="120" rx="14"></rect>
+        <text class="bodymap-label" data-part="腕・手" x="163" y="160">腕・手</text>
+        <rect class="bodypart" data-part="脚・膝" x="62" y="190" width="34" height="120" rx="14"></rect>
+        <text class="bodymap-label" data-part="脚・膝" x="79" y="252">脚・膝</text>
+        <rect class="bodypart" data-part="脚・膝" x="104" y="190" width="34" height="120" rx="14"></rect>
+        <text class="bodymap-label" data-part="脚・膝" x="121" y="252">脚・膝</text>
+      </svg>
+      <svg id="bodySvgBack" class="bodymap-svg" viewBox="0 0 200 320" role="img" aria-label="人体マップ（背面）" style="display:none;">
+        <circle class="bodypart" data-part="頭" cx="100" cy="35" r="28"></circle>
+        <text class="bodymap-label" data-part="頭" x="100" y="39">頭</text>
+        <rect class="bodypart" data-part="首・肩" x="55" y="65" width="90" height="26" rx="10"></rect>
+        <text class="bodymap-label" data-part="首・肩" x="100" y="82">首・肩</text>
+        <rect class="bodypart" data-part="腰・背中" x="60" y="95" width="80" height="90" rx="14"></rect>
+        <text class="bodymap-label" data-part="腰・背中" x="100" y="143">腰・背中</text>
+        <rect class="bodypart" data-part="腕・手" x="20" y="98" width="34" height="120" rx="14"></rect>
+        <text class="bodymap-label" data-part="腕・手" x="37" y="160">腕・手</text>
+        <rect class="bodypart" data-part="腕・手" x="146" y="98" width="34" height="120" rx="14"></rect>
+        <text class="bodymap-label" data-part="腕・手" x="163" y="160">腕・手</text>
+        <rect class="bodypart" data-part="脚・膝" x="62" y="190" width="34" height="120" rx="14"></rect>
+        <text class="bodymap-label" data-part="脚・膝" x="79" y="252">脚・膝</text>
+        <rect class="bodypart" data-part="脚・膝" x="104" y="190" width="34" height="120" rx="14"></rect>
+        <text class="bodymap-label" data-part="脚・膝" x="121" y="252">脚・膝</text>
+      </svg>
+    </div>
+
+    <div class="extra-parts">
+      <button type="button" data-part="こころ" data-normal="🧠 こころ（メンタル）" data-assist="🧠 きもち・こころ">🧠 こころ（メンタル）</button>
+      <button type="button" data-part="行動" data-normal="🌀 行動・衝動" data-assist="🌀 やりたくなってしまうこと">🌀 行動・衝動</button>
+    </div>
+
+    <div class="selected-part-display" id="selectedPartDisplay">
+      <span class="section-note" style="margin:0;" data-normal="部位・症状は未選択です（部位ボタンをタップ）" data-assist="ぶいを えらんでね（したの え を タップ）">部位・症状は未選択です（部位ボタンをタップ）</span>
+    </div>
+
+    <div style="margin-top:1.1rem;">
+      <h2 data-normal="つらさの強さ" data-assist="どれくらい いたい？（つらい？）">つらさの強さ</h2>
+      <p class="section-note" data-normal="1（軽い・水色）〜 10（強い・濃い赤）" data-assist="1（かるい）〜 10（つよい）">1（軽い・水色）〜 10（強い・濃い赤）</p>
+      <div class="intensity-grid" id="intensityGrid"></div>
+    </div>
+
+    <div style="margin-top:1.1rem;">
+      <h2 data-normal="服薬・対処法（コーピング）" data-assist="のんだ くすり・やったこと">服薬・対処法（コーピング）</h2>
+      <div class="checkbox-grid" id="copingGrid"></div>
+      <div class="custom-add-row">
+        <input type="text" id="copingCustomInput" placeholder="対処法を追加（例：入浴した）" data-normal-placeholder="対処法を追加（例：入浴した）" data-assist-placeholder="やったこと を ついか（れい：おふろに はいった）">
+        <button type="button" class="btn btn-ghost" id="copingCustomAddBtn" data-normal="追加" data-assist="ついか">追加</button>
+      </div>
+    </div>
+
+    <div style="margin-top:1.1rem;">
+      <h2 data-normal="天気（任意）" data-assist="おてんき（にゅうりょく しなくてもOK）">天気（任意）</h2>
+      <div class="weather-grid" id="weatherGrid"></div>
+    </div>
+
+    <div class="memo-block" style="margin-top:1.1rem;">
+      <h2>メモ（任意）</h2>
+      <textarea id="memoInput" placeholder="気づいたことなど自由にどうぞ"></textarea>
+    </div>
+
+    <div class="save-row">
+      <button type="button" class="btn btn-primary" id="saveRecordBtn" data-normal="💾 この内容で記録する" data-assist="💾 きろくする">💾 この内容で記録する</button>
+    </div>
+  </section>
+
+  <!-- ===== 右カラム：閲覧・分析 ===== -->
+  <div>
+    <section class="card" aria-labelledby="chartHeading">
+      <h2 id="chartHeading" data-normal="📈 つらさの推移" data-assist="📈 いたみ の うつりかわり">📈 つらさの推移</h2>
+      <div class="toggle-row no-print">
+        <button type="button" id="overlayModeBtn" aria-pressed="true" data-normal="重ね合わせモード" data-assist="ぜんぶ まとめて みる">重ね合わせモード</button>
+        <button type="button" id="byPartModeBtn" aria-pressed="false" data-normal="部位別表示モード" data-assist="ぶいごとに みる">部位別表示モード</button>
+        <select id="byPartSelect" style="display:none;"></select>
+      </div>
+      <canvas id="chartCanvas" width="800" height="240"></canvas>
+      <div class="legend" id="chartLegend"></div>
+      <p class="section-note" id="peacefulNote" style="margin-top:0.5rem;"></p>
+    </section>
+
+    <section class="card no-exam" aria-labelledby="historyHeading">
+      <h2 id="historyHeading" data-normal="🗂 記録の履歴" data-assist="🗂 いままでの きろく">🗂 記録の履歴</h2>
+      <div class="history-list" id="historyList"></div>
+    </section>
+
+    <section class="card" aria-labelledby="reportHeading">
+      <h2 id="reportHeading" data-normal="🖨 受診用レポート" data-assist="🖨 せんせいに みせる シート">🖨 受診用レポート</h2>
+      <p class="section-note" data-normal="A4サイズ1枚で印刷できるレイアウトです。診察室でそのまま見せることもできます。" data-assist="かみ１まいに いんさつできます。せんせいに そのまま みせられます。">A4サイズ1枚で印刷できるレイアウトです。診察室でそのまま見せることもできます。</p>
+      <div class="top-actions no-print">
+        <button type="button" class="btn btn-primary" id="printReportBtn" data-normal="🖨 印刷する" data-assist="🖨 いんさつする">🖨 印刷する</button>
+        <button type="button" class="btn btn-outline" id="conveniPrintBtn" data-normal="🏪 コンビニで印刷する方法" data-assist="🏪 コンビニで いんさつする ほうほう">🏪 コンビニで印刷する方法</button>
+      </div>
+      <div id="reportSummary"></div>
+    </section>
+  </div>
+</main>
+
+<footer style="text-align: center; font-size: 0.75rem; color: #888; margin-top: 3rem; padding: 1rem 0.5rem; line-height: 1.5;">
+  <p style="margin-bottom: 0.5rem;">【ご利用について】</p>
+  <p style="margin-bottom: 0.5rem;">本アプリは、使用される方の毎日を楽しく、快適にする目的で開発されたWEBアプリケーションです。</p>
+  <p style="margin-bottom: 0.5rem;">動作確認には万全を期しておりますが、端末環境やブラウザの仕様変更等に伴うデータ損失やトラブルについて開発者は一切の責任を負いかねます。</p>
+  <p>ご意見・不具合のご報告は X（<a href="https://x.com/lblt_labo" target="_blank" rel="noopener" style="color: #666; text-decoration: underline;">@lblt_labo</a>）までお願いいたします。</p>
+</footer>
+
+<!-- ===== 症状選択モーダル ===== -->
+<div class="modal-overlay" id="symptomModal">
+  <div class="modal-box">
+    <h3 id="symptomModalTitle">症状を選択</h3>
+    <div id="lateralityRow" style="display:none;">
+      <p class="section-note" style="margin:0 0 0.4rem;" data-normal="どちら側ですか？" data-assist="どっちの がわ？">どちら側ですか？</p>
+      <div class="symptom-pick-grid" id="lateralityButtons"></div>
+    </div>
+    <p class="section-note" data-normal="複数選択できます。リストにない症状は下から追加してください。" data-assist="いくつ えらんでも いいよ。なければ したから ついかしてね。">複数選択できます。リストにない症状は下から追加してください。</p>
+    <div class="symptom-pick-grid" id="symptomPickGrid"></div>
+    <div class="custom-add-row">
+      <input type="text" id="symptomCustomInput" placeholder="症状を追加（例：肩甲骨の痛み）" data-normal-placeholder="症状を追加（例：肩甲骨の痛み）" data-assist-placeholder="ついか する（れい：かたが いたい）">
+      <button type="button" class="btn btn-ghost" id="symptomCustomAddBtn" data-normal="追加" data-assist="ついか">追加</button>
+    </div>
+    <div class="modal-close-row">
+      <button type="button" class="btn btn-primary" id="symptomModalDoneBtn" data-normal="選択を確定" data-assist="きめる">選択を確定</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== コンビニ印刷案内モーダル ===== -->
+<div class="modal-overlay" id="conveniModal">
+  <div class="modal-box">
+    <h3 data-normal="🏪 コンビニで印刷する方法" data-assist="🏪 コンビニで いんさつする ほうほう">🏪 コンビニで印刷する方法</h3>
+    <p><strong>① セブン-イレブン（かんたんネットプリント）</strong></p>
+    <p class="section-note">スマホの「かんたんネットプリント」アプリまたはブラウザから、この画面を印刷したPDF・画像をアップロード → 表示された8桁の予約番号をセブン-イレブンのマルチコピー機に入力して印刷できます。</p>
+    <p><strong>② ローソン・ファミリーマート（ネットワークプリント）</strong></p>
+    <p class="section-note">「ネットワークプリント」アプリまたはサイトからファイルを登録 → 発行されたユーザー番号を店舗のマルチコピー機（Famiポート等）に入力して印刷できます。</p>
+    <p class="section-note">※「印刷する」ボタンでPDF保存を選ぶと、上記アプリにアップロードしやすくなります。</p>
+    <div class="modal-close-row">
+      <button type="button" class="btn btn-primary" id="conveniCloseBtn" data-normal="閉じる" data-assist="とじる">閉じる</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 設定モーダル ===== -->
+<div class="modal-overlay" id="settingsModal">
+  <div class="modal-box">
+    <h3 data-normal="⚙️ 設定・データ管理" data-assist="⚙️ せってい">⚙️ 設定・データ管理</h3>
+    <p class="section-note" data-normal="記録データはこの端末のブラウザ内に保存されています。機種変更の前などはバックアップをおすすめします。" data-assist="きろくは この スマホ・パソコンの なかに ほぞんされています。">記録データはこの端末のブラウザ内に保存されています。機種変更の前などはバックアップをおすすめします。</p>
+    <div class="top-actions">
+      <button type="button" class="btn btn-outline" id="exportDataBtn" data-normal="⬇️ データを書き出す" data-assist="⬇️ きろくを ほぞんする">⬇️ データを書き出す</button>
+      <button type="button" class="btn btn-outline" id="importDataBtn" data-normal="⬆️ データを読み込む" data-assist="⬆️ きろくを もどす">⬆️ データを読み込む</button>
+      <input type="file" id="importFileInput" accept="application/json" style="display:none;">
+    </div>
+
+    <hr style="border:none;border-top:1px solid var(--color-border);margin:1rem 0;">
+    <h4>🔒 パスコードロック</h4>
+    <label class="check-chip">
+      <input type="checkbox" id="passcodeEnableToggle">
+      <span data-normal="パスコードでロックする" data-assist="ばんごうで かぎを かける">パスコードでロックする</span>
+    </label>
+    <div id="passcodeSetRow" style="margin-top:0.6rem;display:none;">
+      <div class="custom-add-row">
+        <input type="text" id="passcodeInput" inputmode="numeric" maxlength="4" placeholder="4桁の数字" data-normal-placeholder="4桁の数字" data-assist-placeholder="4つの すうじ">
+        <button type="button" class="btn btn-ghost" id="passcodeSaveBtn" data-normal="保存" data-assist="ほぞん">保存</button>
+      </div>
+      <p class="section-note" data-normal="初期パスコードは「0000」です。" data-assist="はじめは「0000」だよ。">初期パスコードは「0000」です。</p>
+    </div>
+
+    <hr style="border:none;border-top:1px solid var(--color-border);margin:1rem 0;">
+    <p class="section-note" style="color:var(--color-danger);" data-normal="この操作は取り消せません。" data-assist="もとに もどせません。">この操作は取り消せません。</p>
+    <button type="button" class="btn btn-danger" id="clearAllBtn" data-normal="🗑 すべての記録を削除する" data-assist="🗑 ぜんぶ けす">🗑 すべての記録を削除する</button>
+    <div class="modal-close-row">
+      <button type="button" class="btn btn-primary" id="settingsCloseBtn" data-normal="閉じる" data-assist="とじる">閉じる</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  'use strict';
+
+  /* =========================================================
+     ユーティリティ
+  ========================================================= */
+  function safeGetEl(id) {
+    try { return document.getElementById(id); } catch (e) { return null; }
+  }
+  function showToast(msg) {
+    try {
+      var t = safeGetEl('toast');
+      if (!t) return;
+      t.textContent = msg;
+      t.classList.add('show');
+      setTimeout(function () { t.classList.remove('show'); }, 2200);
+    } catch (e) { /* 何もしない */ }
+  }
+  function pad2(n) { return (n < 10 ? '0' : '') + n; }
+  function nowLocalInputValue() {
+    var d = new Date();
+    return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()) +
+      'T' + pad2(d.getHours()) + ':' + pad2(d.getMinutes());
+  }
+  function formatDisplayDate(iso) {
+    try {
+      var d = new Date(iso);
+      if (isNaN(d.getTime())) return iso;
+      var week = ['日','月','火','水','木','金','土'][d.getDay()];
+      return (d.getMonth() + 1) + '/' + d.getDate() + '（' + week + '）' + pad2(d.getHours()) + ':' + pad2(d.getMinutes());
+    } catch (e) { return iso; }
+  }
+
+  /* =========================================================
+     データストア（localStorage、失敗時はメモリにフォールバック）
+  ========================================================= */
+  var STORAGE_KEY = 'kashikalog_records_v1';
+  var SETTINGS_KEY = 'kashikalog_settings_v1';
+  var memoryFallback = { records: [], settings: null };
+  var storageAvailable = true;
+
+  function testStorage() {
+    try {
+      var k = '__kashikalog_test__';
+      window.localStorage.setItem(k, '1');
+      window.localStorage.removeItem(k);
+      return true;
+    } catch (e) { return false; }
+  }
+  storageAvailable = testStorage();
+
+  function loadRecords() {
+    if (!storageAvailable) return memoryFallback.records.slice();
+    try {
+      var raw = window.localStorage.getItem(STORAGE_KEY);
+      if (!raw) return [];
+      var parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return [];
+      return parsed;
+    } catch (e) { return memoryFallback.records.slice(); }
+  }
+  function saveRecords(records) {
+    try {
+      if (storageAvailable) {
+        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+      } else {
+        memoryFallback.records = records.slice();
+      }
+    } catch (e) {
+      memoryFallback.records = records.slice();
+      storageAvailable = false;
+      showToast('保存容量の都合で、今回の記録は一時的にこの画面内のみ保持されます');
+    }
+  }
+
+  function defaultSettings() {
+    return {
+      assistMode: false,
+      passcodeEnabled: false,
+      passcode: '0000',
+      copingList: ['炭酸水を飲んだ', '散歩した', '頓服を飲んだ', '横になった', '深呼吸した', '冷やした', '温めた', 'ストレッチした'],
+      symptomPresets: {
+        '頭': ['偏頭痛', '緊張型頭痛', 'めまい', '耳鳴り', '頭重感'],
+        '首・肩': ['肩こり', '首の痛み', '寝違え', '張り感'],
+        '胸・お腹': ['胸の痛み', '動悸', '胃痛', '吐き気', '腹痛', '胸やけ'],
+        '腰・背中': ['腰痛', '背中の痛み', 'ぎっくり腰'],
+        '腕・手': ['しびれ', '関節痛', 'むくみ'],
+        '脚・膝': ['膝の痛み', 'むくみ', 'しびれ', 'こむら返り'],
+        'こころ': ['不安感', '抑うつ', '不眠', 'イライラ', 'パニック', '焦燥感'],
+        '行動': ['飲酒欲求', 'ゲーム衝動', '過食衝動', '喫煙欲求', '買い物衝動']
+      }
+    };
+  }
+  function loadSettings() {
+    try {
+      if (storageAvailable) {
+        var raw = window.localStorage.getItem(SETTINGS_KEY);
+        if (!raw) return defaultSettings();
+        var parsed = JSON.parse(raw);
+        var d = defaultSettings();
+        return {
+          assistMode: !!parsed.assistMode,
+          passcodeEnabled: !!parsed.passcodeEnabled,
+          passcode: (typeof parsed.passcode === 'string' && /^\d{4}$/.test(parsed.passcode)) ? parsed.passcode : '0000',
+          copingList: Array.isArray(parsed.copingList) ? parsed.copingList : d.copingList,
+          symptomPresets: (parsed.symptomPresets && typeof parsed.symptomPresets === 'object') ? Object.assign(d.symptomPresets, parsed.symptomPresets) : d.symptomPresets
+        };
+      }
+      return memoryFallback.settings || defaultSettings();
+    } catch (e) { return defaultSettings(); }
+  }
+  function saveSettings(s) {
+    try {
+      if (storageAvailable) {
+        window.localStorage.setItem(SETTINGS_KEY, JSON.stringify(s));
+      } else {
+        memoryFallback.settings = s;
+      }
+    } catch (e) { memoryFallback.settings = s; }
+  }
+
+  var records = loadRecords();
+  var settings = loadSettings();
+
+  /* =========================================================
+     色・カラーユニバーサルデザイン
+     色だけに頼らず、数字・形・アイコンでも判別できるようにする
+  ========================================================= */
+  var INTENSITY_COLORS = [
+    '#8fd0e8', '#6fc0da', '#54a9cb', '#4f93bd', '#5c7fae',
+    '#8a6f9e', '#a9597f', '#c14a5e', '#c93b3b', '#b0202a'
+  ];
+  var PART_COLORS = {
+    '頭': '#4f93bd',
+    '首・肩': '#54a9cb',
+    '胸・お腹': '#5c7fae',
+    '腰・背中': '#8a6f9e',
+    '腕・手': '#2b6777',
+    '脚・膝': '#3f8f7a',
+    'こころ': '#c14a5e',
+    '行動': '#c98a2c'
+  };
+  var PART_SYMBOLS = {
+    '頭': '●', '首・肩': '▲', '胸・お腹': '■', '腰・背中': '◆',
+    '腕・手': '▶', '脚・膝': '▼', 'こころ': '★', '行動': '✚'
+  };
+  var FACES = ['😊','😊','🙂','🙂','😐','😐','😟','😣','😖','😖'];
+  var WEATHER_LIST = [
+    { key: '晴れ', icon: '☀️' },
+    { key: '曇り', icon: '☁️' },
+    { key: '雨', icon: '☔' },
+    { key: '低気圧', icon: '🌀' }
+  ];
+  /* アシストモード用：部位名のやさしい言い換え辞書 */
+  var PART_LABELS_ASSIST = {
+    '頭': 'あたま',
+    '首・肩': 'くび・かた',
+    '胸・お腹': 'むね・おなか',
+    '腰・背中': 'こし・せなか',
+    '腕・手': 'うで・て',
+    '脚・膝': 'あし・ひざ',
+    'こころ': 'きもち・こころ',
+    '行動': 'やりたくなってしまうこと'
+  };
+  function partLabel(part) {
+    try {
+      if (settings.assistMode && PART_LABELS_ASSIST[part]) return PART_LABELS_ASSIST[part];
+      return part;
+    } catch (e) { return part; }
+  }
+  /* 左右の概念がある部位（左右指定UIを出す対象） */
+  var LATERAL_PARTS = ['首・肩', '腕・手', '腰・背中', '脚・膝'];
+  var SIDE_LABELS_ASSIST = { '右': 'みぎ', '左': 'ひだり', '両方': 'りょうほう' };
+  function sideLabel(side) {
+    try {
+      if (!side) return '';
+      if (settings.assistMode && SIDE_LABELS_ASSIST[side]) return SIDE_LABELS_ASSIST[side];
+      return side;
+    } catch (e) { return side || ''; }
+  }
+
+  /* =========================================================
+     状態
+  ========================================================= */
+  var currentForm = {
+    part: null,
+    side: null,
+    symptoms: [],
+    intensity: null,
+    coping: [],
+    weather: null,
+    memo: ''
+  };
+  var symptomModalPart = null;
+  var symptomModalTempSelection = [];
+  var symptomModalTempSide = null;
+  var chartMode = 'overlay'; // 'overlay' | 'bypart'
+  var chartByPartSelected = null;
+
+  /* =========================================================
+     テキスト簡易化（data-normal / data-assist 属性の一斉切替）
+  ========================================================= */
+  function applyI18nText() {
+    try {
+      var isAssist = !!settings.assistMode;
+      var textEls = document.querySelectorAll('[data-normal]');
+      for (var i = 0; i < textEls.length; i++) {
+        var el = textEls[i];
+        var normalText = el.getAttribute('data-normal');
+        var assistText = el.getAttribute('data-assist');
+        el.textContent = (isAssist && assistText) ? assistText : normalText;
+      }
+      var placeholderEls = document.querySelectorAll('[data-normal-placeholder]');
+      for (var j = 0; j < placeholderEls.length; j++) {
+        var pEl = placeholderEls[j];
+        var normalPh = pEl.getAttribute('data-normal-placeholder');
+        var assistPh = pEl.getAttribute('data-assist-placeholder');
+        pEl.setAttribute('placeholder', (isAssist && assistPh) ? assistPh : normalPh);
+      }
+    } catch (e) { /* テキスト切り替えに失敗しても他機能には影響させない */ }
+  }
+  function updateBodyMapLabels() {
+    try {
+      var labels = document.querySelectorAll('.bodymap-label[data-part]');
+      for (var i = 0; i < labels.length; i++) {
+        labels[i].textContent = partLabel(labels[i].getAttribute('data-part'));
+      }
+    } catch (e) { /* noop */ }
+  }
+
+  /* =========================================================
+     モード切り替え（通常／アシスト）
+  ========================================================= */
+  function applyAssistModeUI() {
+    var body = document.body;
+    var btnNormal = safeGetEl('modeNormalBtn');
+    var btnAssist = safeGetEl('modeAssistBtn');
+    if (settings.assistMode) {
+      body.classList.add('assist-mode');
+      if (btnNormal) btnNormal.setAttribute('aria-pressed', 'false');
+      if (btnAssist) btnAssist.setAttribute('aria-pressed', 'true');
+    } else {
+      body.classList.remove('assist-mode');
+      if (btnNormal) btnNormal.setAttribute('aria-pressed', 'true');
+      if (btnAssist) btnAssist.setAttribute('aria-pressed', 'false');
+    }
+    applyI18nText();
+    updateBodyMapLabels();
+    renderIntensityGrid();
+    renderSelectedPartDisplay();
+    renderHistory();
+    renderChart();
+    renderReport();
+  }
+
+  var modeNormalBtn = safeGetEl('modeNormalBtn');
+  var modeAssistBtn = safeGetEl('modeAssistBtn');
+  if (modeNormalBtn) modeNormalBtn.addEventListener('click', function () {
+    settings.assistMode = false; saveSettings(settings); applyAssistModeUI();
+  });
+  if (modeAssistBtn) modeAssistBtn.addEventListener('click', function () {
+    settings.assistMode = true; saveSettings(settings); applyAssistModeUI();
+  });
+
+  /* =========================================================
+     人体マップ
+  ========================================================= */
+  var bodyFrontTab = safeGetEl('bodyFrontTab');
+  var bodyBackTab = safeGetEl('bodyBackTab');
+  var bodySvgFront = safeGetEl('bodySvgFront');
+  var bodySvgBack = safeGetEl('bodySvgBack');
+
+  function switchBodyTab(which) {
+    if (!bodySvgFront || !bodySvgBack || !bodyFrontTab || !bodyBackTab) return;
+    if (which === 'front') {
+      bodySvgFront.style.display = ''; bodySvgBack.style.display = 'none';
+      bodyFrontTab.setAttribute('aria-pressed', 'true'); bodyBackTab.setAttribute('aria-pressed', 'false');
+    } else {
+      bodySvgFront.style.display = 'none'; bodySvgBack.style.display = '';
+      bodyFrontTab.setAttribute('aria-pressed', 'false'); bodyBackTab.setAttribute('aria-pressed', 'true');
+    }
+  }
+  if (bodyFrontTab) bodyFrontTab.addEventListener('click', function () { switchBodyTab('front'); });
+  if (bodyBackTab) bodyBackTab.addEventListener('click', function () { switchBodyTab('back'); });
+
+  function bindBodyPartClicks(svgEl) {
+    if (!svgEl) return;
+    var parts = svgEl.querySelectorAll('.bodypart');
+    for (var i = 0; i < parts.length; i++) {
+      parts[i].addEventListener('click', function (ev) {
+        try {
+          var part = ev.currentTarget.getAttribute('data-part');
+          openSymptomModal(part);
+        } catch (e) { /* noop */ }
+      });
+    }
+  }
+  bindBodyPartClicks(bodySvgFront);
+  bindBodyPartClicks(bodySvgBack);
+
+  var extraPartButtons = document.querySelectorAll('.extra-parts button');
+  for (var epi = 0; epi < extraPartButtons.length; epi++) {
+    extraPartButtons[epi].addEventListener('click', function (ev) {
+      try {
+        var part = ev.currentTarget.getAttribute('data-part');
+        openSymptomModal(part);
+      } catch (e) { /* noop */ }
+    });
+  }
+
+  function highlightSelectedParts() {
+    try {
+      var allParts = document.querySelectorAll('.bodypart');
+      for (var i = 0; i < allParts.length; i++) {
+        var p = allParts[i].getAttribute('data-part');
+        if (currentForm.part === p) allParts[i].classList.add('selected');
+        else allParts[i].classList.remove('selected');
+      }
+      var allExtra = document.querySelectorAll('.extra-parts button');
+      for (var j = 0; j < allExtra.length; j++) {
+        var ep = allExtra[j].getAttribute('data-part');
+        if (currentForm.part === ep) allExtra[j].classList.add('selected');
+        else allExtra[j].classList.remove('selected');
+      }
+    } catch (e) { /* noop */ }
+  }
+
+  function renderSelectedPartDisplay() {
+    var disp = safeGetEl('selectedPartDisplay');
+    if (!disp) return;
+    disp.innerHTML = '';
+    if (!currentForm.part) {
+      var span = document.createElement('span');
+      span.className = 'section-note';
+      span.style.margin = '0';
+      span.textContent = settings.assistMode ? 'ぶいを えらんでね（したの え を タップ）' : '部位・症状は未選択です（部位ボタンをタップ）';
+      disp.appendChild(span);
+      return;
+    }
+    var partChip = document.createElement('span');
+    partChip.className = 'chip';
+    var sideText = currentForm.side ? (sideLabel(currentForm.side) + '・') : '';
+    var partLabelText = sideText + partLabel(currentForm.part);
+    partChip.textContent = PART_SYMBOLS[currentForm.part] ? (PART_SYMBOLS[currentForm.part] + ' ' + partLabelText) : partLabelText;
+    disp.appendChild(partChip);
+    for (var i = 0; i < currentForm.symptoms.length; i++) {
+      (function (sym) {
+        var chip = document.createElement('span');
+        chip.className = 'chip';
+        var textNode = document.createTextNode(sym + ' ');
+        chip.appendChild(textNode);
+        var removeBtn = document.createElement('button');
+        removeBtn.type = 'button';
+        removeBtn.setAttribute('aria-label', sym + 'を削除');
+        removeBtn.textContent = '×';
+        removeBtn.addEventListener('click', function () {
+          currentForm.symptoms = currentForm.symptoms.filter(function (s) { return s !== sym; });
+          renderSelectedPartDisplay();
+        });
+        chip.appendChild(removeBtn);
+        disp.appendChild(chip);
+      })(currentForm.symptoms[i]);
+    }
+    highlightSelectedParts();
+  }
+
+  /* ===== 症状選択モーダル ===== */
+  var symptomModal = safeGetEl('symptomModal');
+  var symptomModalTitle = safeGetEl('symptomModalTitle');
+  var symptomPickGrid = safeGetEl('symptomPickGrid');
+  var symptomCustomInput = safeGetEl('symptomCustomInput');
+  var symptomCustomAddBtn = safeGetEl('symptomCustomAddBtn');
+  var symptomModalDoneBtn = safeGetEl('symptomModalDoneBtn');
+  var lateralityRow = safeGetEl('lateralityRow');
+
+  function renderLateralityButtons() {
+    var wrap = safeGetEl('lateralityButtons');
+    if (!wrap) return;
+    wrap.innerHTML = '';
+    var options = ['右', '左', '両方'];
+    for (var i = 0; i < options.length; i++) {
+      (function (opt) {
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'symptom-pick';
+        if (symptomModalTempSide === opt) b.classList.add('selected');
+        b.textContent = sideLabel(opt);
+        b.addEventListener('click', function () {
+          symptomModalTempSide = (symptomModalTempSide === opt) ? null : opt;
+          renderLateralityButtons();
+        });
+        wrap.appendChild(b);
+      })(options[i]);
+    }
+  }
+
+  function openSymptomModal(part) {
+    if (!symptomModal) return;
+    symptomModalPart = part;
+    symptomModalTempSelection = (currentForm.part === part) ? currentForm.symptoms.slice() : [];
+    var isLateral = LATERAL_PARTS.indexOf(part) !== -1;
+    symptomModalTempSide = (isLateral && currentForm.part === part) ? currentForm.side : null;
+    if (lateralityRow) lateralityRow.style.display = isLateral ? '' : 'none';
+    renderLateralityButtons();
+    if (symptomModalTitle) {
+      symptomModalTitle.textContent = settings.assistMode
+        ? ('どんな かんじ？（' + partLabel(part) + '）')
+        : ('症状を選択（' + part + '）');
+    }
+    renderSymptomPickGrid();
+    symptomModal.classList.add('open');
+  }
+  function closeSymptomModal() {
+    if (symptomModal) symptomModal.classList.remove('open');
+  }
+  function renderSymptomPickGrid() {
+    if (!symptomPickGrid || !symptomModalPart) return;
+    symptomPickGrid.innerHTML = '';
+    var list = settings.symptomPresets[symptomModalPart] || [];
+    for (var i = 0; i < list.length; i++) {
+      (function (sym) {
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'symptom-pick';
+        if (symptomModalTempSelection.indexOf(sym) !== -1) b.classList.add('selected');
+        b.textContent = sym;
+        b.addEventListener('click', function () {
+          var idx = symptomModalTempSelection.indexOf(sym);
+          if (idx === -1) symptomModalTempSelection.push(sym);
+          else symptomModalTempSelection.splice(idx, 1);
+          renderSymptomPickGrid();
+        });
+        symptomPickGrid.appendChild(b);
+      })(list[i]);
+    }
+  }
+  if (symptomCustomAddBtn) symptomCustomAddBtn.addEventListener('click', function () {
+    try {
+      if (!symptomCustomInput || !symptomModalPart) return;
+      var val = (symptomCustomInput.value || '').trim();
+      if (!val) return;
+      if (!settings.symptomPresets[symptomModalPart]) settings.symptomPresets[symptomModalPart] = [];
+      if (settings.symptomPresets[symptomModalPart].indexOf(val) === -1) {
+        settings.symptomPresets[symptomModalPart].push(val);
+        saveSettings(settings);
+      }
+      if (symptomModalTempSelection.indexOf(val) === -1) symptomModalTempSelection.push(val);
+      symptomCustomInput.value = '';
+      renderSymptomPickGrid();
+    } catch (e) { /* noop */ }
+  });
+  if (symptomModalDoneBtn) symptomModalDoneBtn.addEventListener('click', function () {
+    currentForm.part = symptomModalPart;
+    currentForm.symptoms = symptomModalTempSelection.slice();
+    currentForm.side = (LATERAL_PARTS.indexOf(symptomModalPart) !== -1) ? symptomModalTempSide : null;
+    renderSelectedPartDisplay();
+    closeSymptomModal();
+  });
+
+  /* =========================================================
+     つらさの強さボタン
+  ========================================================= */
+  function renderIntensityGrid() {
+    var grid = safeGetEl('intensityGrid');
+    if (!grid) return;
+    grid.innerHTML = '';
+    for (var i = 1; i <= 10; i++) {
+      (function (val) {
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'intensity-btn';
+        b.style.background = INTENSITY_COLORS[val - 1];
+        b.setAttribute('aria-pressed', currentForm.intensity === val ? 'true' : 'false');
+        var numSpan = document.createElement('span');
+        numSpan.textContent = val;
+        b.appendChild(numSpan);
+        if (settings.assistMode) {
+          var faceSpan = document.createElement('span');
+          faceSpan.className = 'face';
+          faceSpan.textContent = FACES[val - 1];
+          b.appendChild(faceSpan);
+        }
+        b.addEventListener('click', function () {
+          currentForm.intensity = val;
+          renderIntensityGrid();
+        });
+        grid.appendChild(b);
+      })(i);
+    }
+  }
+
+  /* =========================================================
+     コーピング・天気
+  ========================================================= */
+  function renderCopingGrid() {
+    var grid = safeGetEl('copingGrid');
+    if (!grid) return;
+    grid.innerHTML = '';
+    for (var i = 0; i < settings.copingList.length; i++) {
+      (function (item) {
+        var label = document.createElement('label');
+        label.className = 'check-chip';
+        if (currentForm.coping.indexOf(item) !== -1) label.classList.add('checked');
+        var input = document.createElement('input');
+        input.type = 'checkbox';
+        input.checked = currentForm.coping.indexOf(item) !== -1;
+        input.addEventListener('change', function () {
+          var idx = currentForm.coping.indexOf(item);
+          if (input.checked && idx === -1) currentForm.coping.push(item);
+          else if (!input.checked && idx !== -1) currentForm.coping.splice(idx, 1);
+          renderCopingGrid();
+        });
+        label.appendChild(input);
+        var span = document.createElement('span');
+        span.textContent = item;
+        label.appendChild(span);
+        grid.appendChild(label);
+      })(settings.copingList[i]);
+    }
+  }
+  var copingCustomAddBtn = safeGetEl('copingCustomAddBtn');
+  if (copingCustomAddBtn) copingCustomAddBtn.addEventListener('click', function () {
+    try {
+      var input = safeGetEl('copingCustomInput');
+      if (!input) return;
+      var val = (input.value || '').trim();
+      if (!val) return;
+      if (settings.copingList.indexOf(val) === -1) {
+        settings.copingList.push(val);
+        saveSettings(settings);
+      }
+      if (currentForm.coping.indexOf(val) === -1) currentForm.coping.push(val);
+      input.value = '';
+      renderCopingGrid();
+    } catch (e) { /* noop */ }
+  });
+
+  function renderWeatherGrid() {
+    var grid = safeGetEl('weatherGrid');
+    if (!grid) return;
+    grid.innerHTML = '';
+    for (var i = 0; i < WEATHER_LIST.length; i++) {
+      (function (w) {
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'weather-btn';
+        b.setAttribute('aria-pressed', currentForm.weather === w.key ? 'true' : 'false');
+        var icon = document.createElement('div');
+        icon.textContent = w.icon;
+        b.appendChild(icon);
+        var small = document.createElement('small');
+        small.textContent = w.key;
+        b.appendChild(small);
+        b.addEventListener('click', function () {
+          currentForm.weather = (currentForm.weather === w.key) ? null : w.key;
+          renderWeatherGrid();
+        });
+        grid.appendChild(b);
+      })(WEATHER_LIST[i]);
+    }
+  }
+
+  var memoInput = safeGetEl('memoInput');
+  if (memoInput) memoInput.addEventListener('input', function () {
+    currentForm.memo = memoInput.value;
+  });
+
+  /* =========================================================
+     日時初期化・前回複製・クリア
+  ========================================================= */
+  var recordDatetimeInput = safeGetEl('recordDatetime');
+  function setDatetimeNow() {
+    if (recordDatetimeInput) recordDatetimeInput.value = nowLocalInputValue();
+  }
+  setDatetimeNow();
+
+  function resetForm(keepDatetime) {
+    currentForm = { part: null, side: null, symptoms: [], intensity: null, coping: [], weather: null, memo: '' };
+    if (!keepDatetime) setDatetimeNow();
+    if (memoInput) memoInput.value = '';
+    renderSelectedPartDisplay();
+    renderIntensityGrid();
+    renderCopingGrid();
+    renderWeatherGrid();
+  }
+
+  var resetFormBtn = safeGetEl('resetFormBtn');
+  if (resetFormBtn) resetFormBtn.addEventListener('click', function () { resetForm(false); showToast('入力をクリアしました'); });
+
+  var duplicateLastBtn = safeGetEl('duplicateLastBtn');
+  if (duplicateLastBtn) duplicateLastBtn.addEventListener('click', function () {
+    if (!records.length) { showToast('複製できる過去の記録がありません'); return; }
+    var last = records[records.length - 1];
+    currentForm = {
+      part: last.part || null,
+      side: last.side || null,
+      symptoms: Array.isArray(last.symptoms) ? last.symptoms.slice() : [],
+      intensity: (typeof last.intensity === 'number') ? last.intensity : null,
+      coping: Array.isArray(last.coping) ? last.coping.slice() : [],
+      weather: last.weather || null,
+      memo: ''
+    };
+    setDatetimeNow();
+    renderSelectedPartDisplay();
+    renderIntensityGrid();
+    renderCopingGrid();
+    renderWeatherGrid();
+    showToast('前回の記録を複製しました。必要なら調整して保存してください');
+  });
+
+  /* =========================================================
+     保存
+  ========================================================= */
+  var saveRecordBtn = safeGetEl('saveRecordBtn');
+  if (saveRecordBtn) saveRecordBtn.addEventListener('click', function () {
+    try {
+      if (!currentForm.part) { showToast('部位を選択してください'); return; }
+      if (currentForm.intensity === null) { showToast('つらさの強さを選択してください'); return; }
+      var dtVal = recordDatetimeInput && recordDatetimeInput.value ? recordDatetimeInput.value : nowLocalInputValue();
+      var rec = {
+        id: 'r_' + Date.now() + '_' + Math.floor(Math.random() * 10000),
+        datetime: dtVal,
+        part: currentForm.part,
+        side: currentForm.side || null,
+        symptoms: currentForm.symptoms.slice(),
+        intensity: currentForm.intensity,
+        coping: currentForm.coping.slice(),
+        weather: currentForm.weather,
+        memo: currentForm.memo || ''
+      };
+      records.push(rec);
+      records.sort(function (a, b) { return new Date(a.datetime) - new Date(b.datetime); });
+      saveRecords(records);
+      showToast('記録しました');
+      resetForm(false);
+      renderHistory();
+      renderChart();
+      renderReport();
+    } catch (e) {
+      showToast('保存中にエラーが発生しました。もう一度お試しください');
+    }
+  });
+
+  /* =========================================================
+     履歴表示
+  ========================================================= */
+  function renderHistory() {
+    var list = safeGetEl('historyList');
+    if (!list) return;
+    list.innerHTML = '';
+    if (!records.length) {
+      var empty = document.createElement('div');
+      empty.className = 'empty-state';
+      empty.textContent = 'まだ記録がありません。左のフォームから記録してみましょう。';
+      list.appendChild(empty);
+      return;
+    }
+    var sorted = records.slice().sort(function (a, b) { return new Date(b.datetime) - new Date(a.datetime); });
+    for (var i = 0; i < sorted.length; i++) {
+      (function (rec) {
+        var item = document.createElement('div');
+        item.className = 'history-item';
+        var main = document.createElement('div');
+        main.className = 'history-main';
+        var badge = document.createElement('span');
+        badge.className = 'history-badge';
+        badge.style.background = PART_COLORS[rec.part] || '#607d8b';
+        var sideTxt = rec.side ? (sideLabel(rec.side) + '・') : '';
+        badge.textContent = (PART_SYMBOLS[rec.part] || '') + ' ' + sideTxt + partLabel(rec.part);
+        main.appendChild(badge);
+        var boldText = document.createElement('strong');
+        boldText.textContent = 'Lv.' + rec.intensity;
+        main.appendChild(boldText);
+        var symText = document.createElement('div');
+        symText.textContent = (rec.symptoms && rec.symptoms.length) ? rec.symptoms.join('、') : '（症状未指定）';
+        main.appendChild(symText);
+        if (rec.coping && rec.coping.length) {
+          var copingText = document.createElement('div');
+          copingText.className = 'history-time';
+          copingText.textContent = '対処: ' + rec.coping.join('、');
+          main.appendChild(copingText);
+        }
+        if (rec.memo) {
+          var memoText = document.createElement('div');
+          memoText.className = 'history-time';
+          memoText.textContent = 'メモ: ' + rec.memo;
+          main.appendChild(memoText);
+        }
+        var timeText = document.createElement('div');
+        timeText.className = 'history-time';
+        timeText.textContent = formatDisplayDate(rec.datetime) + (rec.weather ? ('　' + rec.weather) : '');
+        main.appendChild(timeText);
+        item.appendChild(main);
+        var delBtn = document.createElement('button');
+        delBtn.className = 'history-del no-print';
+        delBtn.setAttribute('aria-label', 'この記録を削除');
+        delBtn.textContent = '🗑';
+        delBtn.addEventListener('click', function () {
+          if (!window.confirm('この記録を削除しますか？')) return;
+          records = records.filter(function (r) { return r.id !== rec.id; });
+          saveRecords(records);
+          renderHistory(); renderChart(); renderReport();
+        });
+        item.appendChild(delBtn);
+        list.appendChild(item);
+      })(sorted[i]);
+    }
+  }
+
+  /* =========================================================
+     グラフ（Canvas / 外部ライブラリ不使用）
+  ========================================================= */
+  var overlayModeBtn = safeGetEl('overlayModeBtn');
+  var byPartModeBtn = safeGetEl('byPartModeBtn');
+  var byPartSelect = safeGetEl('byPartSelect');
+
+  function getAllPartsInUse() {
+    var set = {};
+    for (var i = 0; i < records.length; i++) set[records[i].part] = true;
+    return Object.keys(set);
+  }
+
+  function refreshByPartSelectOptions() {
+    if (!byPartSelect) return;
+    var parts = getAllPartsInUse();
+    byPartSelect.innerHTML = '';
+    if (!parts.length) {
+      var opt = document.createElement('option');
+      opt.textContent = 'データがありません';
+      byPartSelect.appendChild(opt);
+      return;
+    }
+    for (var i = 0; i < parts.length; i++) {
+      var o = document.createElement('option');
+      o.value = parts[i];
+      o.textContent = partLabel(parts[i]);
+      byPartSelect.appendChild(o);
+    }
+    if (!chartByPartSelected || parts.indexOf(chartByPartSelected) === -1) {
+      chartByPartSelected = parts[0];
+    }
+    byPartSelect.value = chartByPartSelected;
+  }
+
+  if (overlayModeBtn) overlayModeBtn.addEventListener('click', function () {
+    chartMode = 'overlay';
+    overlayModeBtn.setAttribute('aria-pressed', 'true');
+    if (byPartModeBtn) byPartModeBtn.setAttribute('aria-pressed', 'false');
+    if (byPartSelect) byPartSelect.style.display = 'none';
+    renderChart();
+  });
+  if (byPartModeBtn) byPartModeBtn.addEventListener('click', function () {
+    chartMode = 'bypart';
+    byPartModeBtn.setAttribute('aria-pressed', 'true');
+    if (overlayModeBtn) overlayModeBtn.setAttribute('aria-pressed', 'false');
+    refreshByPartSelectOptions();
+    if (byPartSelect) byPartSelect.style.display = '';
+    renderChart();
+  });
+  if (byPartSelect) byPartSelect.addEventListener('change', function () {
+    chartByPartSelected = byPartSelect.value;
+    renderChart();
+  });
+
+  function dayKey(iso) {
+    try {
+      var d = new Date(iso);
+      return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
+    } catch (e) { return iso; }
+  }
+
+  function renderChart() {
+    try {
+      var canvas = safeGetEl('chartCanvas');
+      var legend = safeGetEl('chartLegend');
+      var peacefulNote = safeGetEl('peacefulNote');
+      if (!canvas || !canvas.getContext) return;
+      var ctx = canvas.getContext('2d');
+      var cssWidth = canvas.clientWidth || 800;
+      var cssHeight = 240;
+      canvas.width = cssWidth; canvas.height = cssHeight;
+      ctx.clearRect(0, 0, cssWidth, cssHeight);
+
+      if (legend) legend.innerHTML = '';
+
+      if (!records.length) {
+        ctx.fillStyle = '#8a9a9e';
+        ctx.font = '13px sans-serif';
+        ctx.fillText('記録が増えると、ここに推移グラフが表示されます', 16, cssHeight / 2);
+        if (peacefulNote) peacefulNote.textContent = '';
+        return;
+      }
+
+      var sorted = records.slice().sort(function (a, b) { return new Date(a.datetime) - new Date(b.datetime); });
+      var minTime = new Date(sorted[0].datetime).getTime();
+      var maxTime = new Date(sorted[sorted.length - 1].datetime).getTime();
+      if (maxTime === minTime) maxTime = minTime + 1000 * 60 * 60 * 24;
+
+      var padL = 34, padR = 12, padT = 14, padB = 26;
+      var plotW = cssWidth - padL - padR;
+      var plotH = cssHeight - padT - padB;
+
+      function xPos(t) { return padL + ((t - minTime) / (maxTime - minTime)) * plotW; }
+      function yPos(v) { return padT + plotH - ((v - 0) / 10) * plotH; }
+
+      /* 「つらさゼロ（平和な時間）」の可視化：記録が存在しない日を薄緑バンドで表示 */
+      var daysWithRecords = {};
+      for (var di = 0; di < sorted.length; di++) daysWithRecords[dayKey(sorted[di].datetime)] = true;
+      var peacefulDayCount = 0;
+      ctx.fillStyle = 'rgba(140,200,160,0.18)';
+      var oneDayMs = 1000 * 60 * 60 * 24;
+      for (var t = minTime; t <= maxTime; t += oneDayMs) {
+        var key = dayKey(new Date(t).toISOString());
+        if (!daysWithRecords[key]) {
+          peacefulDayCount++;
+          var x1 = xPos(t), x2 = xPos(Math.min(t + oneDayMs, maxTime));
+          ctx.fillRect(x1, padT, Math.max(2, x2 - x1), plotH);
+        }
+      }
+      if (peacefulNote) {
+        peacefulNote.textContent = peacefulDayCount > 0
+          ? ('🟢 期間中 ' + peacefulDayCount + '日分は記録のない「平和な時間」でした')
+          : '';
+      }
+
+      /* 軸 */
+      ctx.strokeStyle = '#c6d4d7';
+      ctx.lineWidth = 1;
+      ctx.font = '10px sans-serif';
+      ctx.fillStyle = '#5c7075';
+      for (var lv = 0; lv <= 10; lv += 2) {
+        var y = yPos(lv);
+        ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(cssWidth - padR, y); ctx.stroke();
+        ctx.fillText(String(lv), 4, y + 3);
+      }
+
+      function drawSeries(points, color, dash) {
+        if (!points.length) return;
+        ctx.setLineDash(dash || []);
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        for (var i = 0; i < points.length; i++) {
+          var px = xPos(new Date(points[i].datetime).getTime());
+          var py = yPos(points[i].intensity);
+          if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+        }
+        ctx.stroke();
+        ctx.setLineDash([]);
+        for (var j = 0; j < points.length; j++) {
+          var qx = xPos(new Date(points[j].datetime).getTime());
+          var qy = yPos(points[j].intensity);
+          ctx.beginPath();
+          ctx.arc(qx, qy, 3.2, 0, Math.PI * 2);
+          ctx.fillStyle = color;
+          ctx.fill();
+        }
+      }
+
+      if (chartMode === 'overlay') {
+        var byPart = {};
+        for (var i = 0; i < sorted.length; i++) {
+          var p = sorted[i].part;
+          if (!byPart[p]) byPart[p] = [];
+          byPart[p].push(sorted[i]);
+        }
+        var partKeys = Object.keys(byPart);
+        for (var k = 0; k < partKeys.length; k++) {
+          var pk = partKeys[k];
+          drawSeries(byPart[pk], PART_COLORS[pk] || '#607d8b', (k % 2 === 1) ? [5, 3] : []);
+        }
+        if (legend) {
+          for (var m = 0; m < partKeys.length; m++) {
+            var li = document.createElement('div');
+            li.className = 'legend-item';
+            var sw = document.createElement('span');
+            sw.className = 'legend-swatch';
+            sw.style.background = PART_COLORS[partKeys[m]] || '#607d8b';
+            li.appendChild(sw);
+            var lbl = document.createElement('span');
+            lbl.textContent = (PART_SYMBOLS[partKeys[m]] || '') + ' ' + partLabel(partKeys[m]);
+            li.appendChild(lbl);
+            legend.appendChild(li);
+          }
+        }
+      } else {
+        refreshByPartSelectOptions();
+        var target = chartByPartSelected;
+        var filtered = sorted.filter(function (r) { return r.part === target; });
+        drawSeries(filtered, PART_COLORS[target] || '#2b6777', []);
+        if (legend && target) {
+          var li2 = document.createElement('div');
+          li2.className = 'legend-item';
+          var sw2 = document.createElement('span');
+          sw2.className = 'legend-swatch';
+          sw2.style.background = PART_COLORS[target] || '#2b6777';
+          li2.appendChild(sw2);
+          var lbl2 = document.createElement('span');
+          lbl2.textContent = partLabel(target);
+          li2.appendChild(lbl2);
+          legend.appendChild(li2);
+        }
+      }
+    } catch (e) {
+      /* グラフ描画に失敗しても他の機能に影響を与えない */
+    }
+  }
+
+  /* =========================================================
+     受診用レポート（印刷対応）
+  ========================================================= */
+  function renderReport() {
+    var el = safeGetEl('reportSummary');
+    if (!el) return;
+    el.innerHTML = '';
+    if (!records.length) {
+      var p = document.createElement('p');
+      p.className = 'section-note';
+      p.textContent = '記録が増えると、ここに集計表が表示されます。';
+      el.appendChild(p);
+      return;
+    }
+    var sorted = records.slice().sort(function (a, b) { return new Date(a.datetime) - new Date(b.datetime); });
+    var first = formatDisplayDate(sorted[0].datetime);
+    var last = formatDisplayDate(sorted[sorted.length - 1].datetime);
+    var avg = (sorted.reduce(function (s, r) { return s + r.intensity; }, 0) / sorted.length).toFixed(1);
+    var max = Math.max.apply(null, sorted.map(function (r) { return r.intensity; }));
+
+    var summaryP = document.createElement('p');
+    summaryP.innerHTML = '記録期間：' + first + '　〜　' + last + '<br>記録件数：' + sorted.length + '件　／　平均つらさ：' + avg + '　／　最大つらさ：' + max;
+    el.appendChild(summaryP);
+
+    var table = document.createElement('table');
+    table.style.width = '100%';
+    table.style.borderCollapse = 'collapse';
+    table.style.fontSize = '0.82rem';
+    var thead = document.createElement('thead');
+    var headRow = document.createElement('tr');
+    (settings.assistMode
+      ? ['いつ', 'ぶい', 'どんな かんじ', 'つよさ', 'やったこと', 'おてんき']
+      : ['日時', '部位', '症状', '強さ', '対処法', '天気']
+    ).forEach(function (h) {
+      var th = document.createElement('th');
+      th.textContent = h;
+      th.style.border = '1px solid #ccc';
+      th.style.padding = '4px 6px';
+      th.style.background = '#eef3f4';
+      headRow.appendChild(th);
+    });
+    thead.appendChild(headRow);
+    table.appendChild(thead);
+    var tbody = document.createElement('tbody');
+    var recentForTable = sorted.slice(-30);
+    for (var i = 0; i < recentForTable.length; i++) {
+      var r = recentForTable[i];
+      var tr = document.createElement('tr');
+      var sideTxt = r.side ? (sideLabel(r.side) + '・') : '';
+      [
+        formatDisplayDate(r.datetime),
+        sideTxt + partLabel(r.part),
+        (r.symptoms && r.symptoms.length) ? r.symptoms.join('、') : '-',
+        String(r.intensity),
+        (r.coping && r.coping.length) ? r.coping.join('、') : '-',
+        r.weather || '-'
+      ].forEach(function (val) {
+        var td = document.createElement('td');
+        td.textContent = val;
+        td.style.border = '1px solid #ccc';
+        td.style.padding = '4px 6px';
+        tr.appendChild(td);
+      });
+      tbody.appendChild(tr);
+    }
+    table.appendChild(tbody);
+    el.appendChild(table);
+  }
+
+  var printReportBtn = safeGetEl('printReportBtn');
+  if (printReportBtn) printReportBtn.addEventListener('click', function () {
+    try { window.print(); } catch (e) { showToast('印刷を開始できませんでした'); }
+  });
+
+  var conveniPrintBtn = safeGetEl('conveniPrintBtn');
+  var conveniModal = safeGetEl('conveniModal');
+  var conveniCloseBtn = safeGetEl('conveniCloseBtn');
+  if (conveniPrintBtn && conveniModal) conveniPrintBtn.addEventListener('click', function () { conveniModal.classList.add('open'); });
+  if (conveniCloseBtn && conveniModal) conveniCloseBtn.addEventListener('click', function () { conveniModal.classList.remove('open'); });
+
+  /* =========================================================
+     診察モード（全画面風 + 画面スリープ防止）
+  ========================================================= */
+  var wakeLockRef = null;
+  var examEnterBtn = safeGetEl('examEnterBtn');
+  var examExitBtn = safeGetEl('examExitBtn');
+
+  function enterExamMode() {
+    document.body.classList.add('exam-mode');
+    try {
+      if (document.documentElement.requestFullscreen) {
+        document.documentElement.requestFullscreen().catch(function () { /* 全画面非対応でも継続 */ });
+      }
+    } catch (e) { /* noop */ }
+    try {
+      if ('wakeLock' in navigator) {
+        navigator.wakeLock.request('screen').then(function (lock) {
+          wakeLockRef = lock;
+        }).catch(function () { /* wakeLock失敗時も画面は通常通り利用可能 */ });
+      }
+    } catch (e) { /* noop */ }
+    showToast('診察モードに入りました');
+  }
+  function exitExamMode() {
+    document.body.classList.remove('exam-mode');
+    try {
+      if (wakeLockRef && wakeLockRef.release) wakeLockRef.release();
+    } catch (e) { /* noop */ }
+    wakeLockRef = null;
+    try {
+      if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen().catch(function () {});
+    } catch (e) { /* noop */ }
+  }
+  if (examEnterBtn) examEnterBtn.addEventListener('click', enterExamMode);
+  if (examExitBtn) examExitBtn.addEventListener('click', exitExamMode);
+
+  /* =========================================================
+     パスコードロック
+  ========================================================= */
+  var isLocked = false;
+  var lockBuffer = '';
+  var LOCK_MAX_LEN = 4;
+
+  function renderLockDots() {
+    try {
+      var dotsEl = safeGetEl('lockDots');
+      if (!dotsEl) return;
+      dotsEl.innerHTML = '';
+      for (var i = 0; i < LOCK_MAX_LEN; i++) {
+        var d = document.createElement('span');
+        d.className = 'lock-dot' + (i < lockBuffer.length ? ' filled' : '');
+        dotsEl.appendChild(d);
+      }
+    } catch (e) { /* noop */ }
+  }
+  function renderLockKeypad() {
+    try {
+      var kp = safeGetEl('lockKeypad');
+      if (!kp) return;
+      kp.innerHTML = '';
+      var keys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '', '0', 'del'];
+      for (var i = 0; i < keys.length; i++) {
+        (function (k) {
+          var b = document.createElement('button');
+          b.type = 'button';
+          b.className = 'lock-key';
+          if (k === '') {
+            b.style.visibility = 'hidden';
+            b.disabled = true;
+          } else if (k === 'del') {
+            b.textContent = '⌫';
+            b.setAttribute('aria-label', '削除');
+          } else {
+            b.textContent = k;
+          }
+          b.addEventListener('click', function () {
+            try {
+              if (k === '') return;
+              var errEl = safeGetEl('lockError');
+              if (errEl) errEl.textContent = '';
+              if (k === 'del') {
+                lockBuffer = lockBuffer.slice(0, -1);
+              } else if (lockBuffer.length < LOCK_MAX_LEN) {
+                lockBuffer += k;
+              }
+              renderLockDots();
+              if (lockBuffer.length === LOCK_MAX_LEN) {
+                setTimeout(function () { checkLockBuffer(); }, 150);
+              }
+            } catch (e) { /* noop */ }
+          });
+          kp.appendChild(b);
+        })(keys[i]);
+      }
+    } catch (e) { /* noop */ }
+  }
+  function checkLockBuffer() {
+    try {
+      if (lockBuffer === (settings.passcode || '0000')) {
+        isLocked = false;
+        lockBuffer = '';
+        var overlay = safeGetEl('lockOverlay');
+        if (overlay) overlay.style.display = 'none';
+      } else {
+        var errEl = safeGetEl('lockError');
+        if (errEl) errEl.textContent = settings.assistMode ? 'ちがうよ、もういちど おしてね' : 'パスコードが違います。もう一度お試しください';
+        lockBuffer = '';
+        renderLockDots();
+      }
+    } catch (e) { /* noop */ }
+  }
+  function showLockScreen() {
+    try {
+      lockBuffer = '';
+      var errEl = safeGetEl('lockError');
+      if (errEl) errEl.textContent = '';
+      renderLockDots();
+      renderLockKeypad();
+      applyI18nText();
+      var overlay = safeGetEl('lockOverlay');
+      if (overlay) overlay.style.display = 'flex';
+    } catch (e) { /* noop */ }
+  }
+  var lockResetLink = safeGetEl('lockResetLink');
+  if (lockResetLink) lockResetLink.addEventListener('click', function () {
+    try {
+      var msg = '※パスコードをリセットすると、これまでの記録データがすべて消去されます。よろしいですか？';
+      if (!window.confirm(msg)) return;
+      try {
+        if (storageAvailable) {
+          window.localStorage.removeItem(STORAGE_KEY);
+          window.localStorage.removeItem(SETTINGS_KEY);
+        }
+      } catch (e) { /* noop */ }
+      records = [];
+      settings = defaultSettings();
+      saveRecords(records);
+      saveSettings(settings);
+      isLocked = false;
+      var overlay = safeGetEl('lockOverlay');
+      if (overlay) overlay.style.display = 'none';
+      applyAssistModeUI();
+      syncPasscodeSettingsUI();
+      renderCopingGrid();
+      renderWeatherGrid();
+      renderHistory();
+      renderChart();
+      renderReport();
+      showToast('データを初期化しました');
+    } catch (e) { showToast('初期化に失敗しました'); }
+  });
+
+  document.addEventListener('visibilitychange', function () {
+    try {
+      if (document.visibilityState === 'visible' && settings.passcodeEnabled) {
+        isLocked = true;
+        showLockScreen();
+      }
+    } catch (e) { /* noop */ }
+  });
+
+  /* =========================================================
+     設定モーダル・データバックアップ・パスコード設定
+  ========================================================= */
+  var settingsBtn = safeGetEl('settingsBtn');
+  var settingsModal = safeGetEl('settingsModal');
+  var settingsCloseBtn = safeGetEl('settingsCloseBtn');
+  if (settingsBtn && settingsModal) settingsBtn.addEventListener('click', function () { settingsModal.classList.add('open'); });
+  if (settingsCloseBtn && settingsModal) settingsCloseBtn.addEventListener('click', function () { settingsModal.classList.remove('open'); });
+
+  var exportDataBtn = safeGetEl('exportDataBtn');
+  if (exportDataBtn) exportDataBtn.addEventListener('click', function () {
+    try {
+      var payload = { records: records, settings: settings, exportedAt: new Date().toISOString() };
+      var blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = 'kashikalog_backup_' + Date.now() + '.json';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(function () { URL.revokeObjectURL(url); }, 3000);
+      showToast('データを書き出しました');
+    } catch (e) { showToast('書き出しに失敗しました'); }
+  });
+
+  var importDataBtn = safeGetEl('importDataBtn');
+  var importFileInput = safeGetEl('importFileInput');
+  if (importDataBtn && importFileInput) importDataBtn.addEventListener('click', function () { importFileInput.click(); });
+  if (importFileInput) importFileInput.addEventListener('change', function (ev) {
+    try {
+      var file = ev.target.files && ev.target.files[0];
+      if (!file) return;
+      var reader = new FileReader();
+      reader.onload = function () {
+        try {
+          var parsed = JSON.parse(reader.result);
+          if (parsed && Array.isArray(parsed.records)) {
+            records = parsed.records;
+            saveRecords(records);
+          }
+          if (parsed && parsed.settings) {
+            settings = Object.assign(defaultSettings(), parsed.settings);
+            saveSettings(settings);
+          }
+          renderHistory(); renderChart(); renderReport(); renderCopingGrid(); applyAssistModeUI(); syncPasscodeSettingsUI();
+          showToast('データを読み込みました');
+        } catch (e) { showToast('ファイルの読み込みに失敗しました'); }
+      };
+      reader.onerror = function () { showToast('ファイルの読み込みに失敗しました'); };
+      reader.readAsText(file);
+    } catch (e) { showToast('ファイルの読み込みに失敗しました'); }
+  });
+
+  var clearAllBtn = safeGetEl('clearAllBtn');
+  if (clearAllBtn) clearAllBtn.addEventListener('click', function () {
+    if (!window.confirm('本当にすべての記録を削除しますか？この操作は取り消せません。')) return;
+    records = [];
+    saveRecords(records);
+    renderHistory(); renderChart(); renderReport();
+    showToast('すべての記録を削除しました');
+  });
+
+  var passcodeEnableToggle = safeGetEl('passcodeEnableToggle');
+  var passcodeSetRow = safeGetEl('passcodeSetRow');
+  function syncPasscodeSettingsUI() {
+    try {
+      if (passcodeEnableToggle) passcodeEnableToggle.checked = !!settings.passcodeEnabled;
+      if (passcodeSetRow) passcodeSetRow.style.display = settings.passcodeEnabled ? '' : 'none';
+    } catch (e) { /* noop */ }
+  }
+  if (passcodeEnableToggle) passcodeEnableToggle.addEventListener('change', function () {
+    try {
+      settings.passcodeEnabled = passcodeEnableToggle.checked;
+      saveSettings(settings);
+      if (passcodeSetRow) passcodeSetRow.style.display = settings.passcodeEnabled ? '' : 'none';
+      if (!settings.passcodeEnabled) {
+        isLocked = false;
+        var overlay = safeGetEl('lockOverlay');
+        if (overlay) overlay.style.display = 'none';
+      }
+    } catch (e) { /* noop */ }
+  });
+  var passcodeSaveBtn = safeGetEl('passcodeSaveBtn');
+  if (passcodeSaveBtn) passcodeSaveBtn.addEventListener('click', function () {
+    try {
+      var input = safeGetEl('passcodeInput');
+      if (!input) return;
+      var val = (input.value || '').trim();
+      if (!/^\d{4}$/.test(val)) { showToast('4桁の数字で入力してください'); return; }
+      settings.passcode = val;
+      saveSettings(settings);
+      input.value = '';
+      showToast('パスコードを設定しました');
+    } catch (e) { showToast('設定に失敗しました'); }
+  });
+
+  /* =========================================================
+     Service Worker 登録（失敗してもアプリ本体には影響なし）
+  ========================================================= */
+  try {
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function () {
+        try {
+          navigator.serviceWorker.register('./sw.js').catch(function () { /* 登録失敗は無視 */ });
+        } catch (e) { /* noop */ }
+      });
+    }
+  } catch (e) { /* noop */ }
+
+  /* =========================================================
+     初期描画
+  ========================================================= */
+  try {
+    applyAssistModeUI();
+    syncPasscodeSettingsUI();
+    renderSelectedPartDisplay();
+    renderIntensityGrid();
+    renderCopingGrid();
+    renderWeatherGrid();
+    renderHistory();
+    renderChart();
+    renderReport();
+    window.addEventListener('resize', function () { try { renderChart(); } catch (e) {} });
+    if (settings.passcodeEnabled) {
+      isLocked = true;
+      showLockScreen();
+    }
+  } catch (e) {
+    showToast('初期化中に問題が発生しましたが、可能な範囲でご利用いただけます');
+  }
+});
+</script>
+</body>
+</html>
