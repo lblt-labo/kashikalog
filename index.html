@@ -350,6 +350,29 @@
     font-size:0.92rem;font-family:inherit;resize:vertical;
   }
   .assist-mode .memo-block{display:none;}
+  .med-subheading{
+    margin:1rem 0 0.5rem;
+    font-size:0.88rem;
+    font-weight:700;
+    color:var(--color-accent-dark);
+  }
+  .assist-mode .med-grid .check-chip{
+    font-size:1.05rem;
+    padding:0.75rem 1.1rem;
+    min-height:56px;
+    font-weight:700;
+  }
+  .med-empty-note{font-size:0.8rem;color:var(--color-sub);}
+  .med-manage-list{display:flex;flex-wrap:wrap;gap:0.5rem;margin:0.6rem 0;}
+  .med-manage-chip{
+    display:inline-flex;align-items:center;gap:0.4rem;
+    background:#fff;border:1px solid var(--color-accent);color:var(--color-accent-dark);
+    border-radius:999px;padding:0.35rem 0.8rem;font-size:0.85rem;
+  }
+  .med-manage-chip button{
+    border:none;background:transparent;color:var(--color-danger);
+    font-weight:900;cursor:pointer;font-size:0.95rem;padding:0 0.15rem;min-height:32px;
+  }
 
   .save-row{margin-top:1rem;display:flex;gap:0.6rem;flex-wrap:wrap;}
   .save-row .btn{flex:1;min-width:140px;}
@@ -585,6 +608,9 @@
         <input type="text" id="copingCustomInput" placeholder="対処法を追加（例：入浴した）" data-normal-placeholder="対処法を追加（例：入浴した）" data-assist-placeholder="やったこと を ついか（れい：おふろに はいった）">
         <button type="button" class="btn btn-ghost" id="copingCustomAddBtn" data-normal="追加" data-assist="ついか">追加</button>
       </div>
+      <h3 class="med-subheading" data-normal="🩹 頓服薬（飲んだ薬）" data-assist="🩹 のんだ くすり">🩹 頓服薬（飲んだ薬）</h3>
+      <div class="checkbox-grid med-grid" id="medicationGrid"></div>
+      <p class="section-note" data-normal="頓服薬の登録・削除は「⚙️ 設定」から行えます。" data-assist="くすりの ついか・けすのは「⚙️ せってい」から できるよ。">頓服薬の登録・削除は「⚙️ 設定」から行えます。</p>
     </div>
 
     <div style="margin-top:1.1rem;">
@@ -614,6 +640,7 @@
       <canvas id="chartCanvas" width="800" height="240"></canvas>
       <div class="legend" id="chartLegend"></div>
       <p class="section-note" id="peacefulNote" style="margin-top:0.5rem;"></p>
+      <p class="section-note" data-normal="💊 のマークは頓服薬を服用した記録です" data-assist="💊 は くすりを のんだ しるしだよ">💊 のマークは頓服薬を服用した記録です</p>
     </section>
 
     <section class="card no-exam" aria-labelledby="historyHeading">
@@ -684,6 +711,15 @@
       <button type="button" class="btn btn-outline" id="exportDataBtn" data-normal="⬇️ データを書き出す" data-assist="⬇️ きろくを ほぞんする">⬇️ データを書き出す</button>
       <button type="button" class="btn btn-outline" id="importDataBtn" data-normal="⬆️ データを読み込む" data-assist="⬆️ きろくを もどす">⬆️ データを読み込む</button>
       <input type="file" id="importFileInput" accept="application/json" style="display:none;">
+    </div>
+
+    <hr style="border:none;border-top:1px solid var(--color-border);margin:1rem 0;">
+    <h4 data-normal="🩹 頓服薬の管理" data-assist="🩹 くすりの リスト">🩹 頓服薬の管理</h4>
+    <p class="section-note" data-normal="記録フォームで選べる頓服薬の一覧です。追加・削除できます。" data-assist="きろくで えらべる くすりの リストだよ。ついか・けす ができるよ。">記録フォームで選べる頓服薬の一覧です。追加・削除できます。</p>
+    <div class="med-manage-list" id="medManageList"></div>
+    <div class="custom-add-row">
+      <input type="text" id="medCustomInput" placeholder="頓服薬を追加（例：ロキソニン）" data-normal-placeholder="頓服薬を追加（例：ロキソニン）" data-assist-placeholder="くすりを ついか（れい：ロキソニン）">
+      <button type="button" class="btn btn-ghost" id="medCustomAddBtn" data-normal="追加" data-assist="ついか">追加</button>
     </div>
 
     <hr style="border:none;border-top:1px solid var(--color-border);margin:1rem 0;">
@@ -793,6 +829,7 @@ document.addEventListener('DOMContentLoaded', function () {
       passcodeEnabled: false,
       passcode: '0000',
       copingList: ['炭酸水を飲んだ', '散歩した', '頓服を飲んだ', '横になった', '深呼吸した', '冷やした', '温めた', 'ストレッチした'],
+      medicationList: ['ロキソニン', 'カロナール', 'ワイパックス'],
       symptomPresets: {
         '頭': ['偏頭痛', '緊張型頭痛', 'めまい', '耳鳴り', '頭重感'],
         '首・肩': ['肩こり', '首の痛み', '寝違え', '張り感'],
@@ -817,6 +854,7 @@ document.addEventListener('DOMContentLoaded', function () {
           passcodeEnabled: !!parsed.passcodeEnabled,
           passcode: (typeof parsed.passcode === 'string' && /^\d{4}$/.test(parsed.passcode)) ? parsed.passcode : '0000',
           copingList: Array.isArray(parsed.copingList) ? parsed.copingList : d.copingList,
+          medicationList: Array.isArray(parsed.medicationList) ? parsed.medicationList : d.medicationList,
           symptomPresets: (parsed.symptomPresets && typeof parsed.symptomPresets === 'object') ? Object.assign(d.symptomPresets, parsed.symptomPresets) : d.symptomPresets
         };
       }
@@ -902,6 +940,7 @@ document.addEventListener('DOMContentLoaded', function () {
     symptoms: [],
     intensity: null,
     coping: [],
+    medications: [],
     weather: null,
     memo: ''
   };
@@ -1249,6 +1288,102 @@ document.addEventListener('DOMContentLoaded', function () {
     } catch (e) { /* noop */ }
   });
 
+  /* ===== 頓服薬（記録フォームの複数選択） ===== */
+  function renderMedicationGrid() {
+    var grid = safeGetEl('medicationGrid');
+    if (!grid) return;
+    grid.innerHTML = '';
+    if (!settings.medicationList.length) {
+      var empty = document.createElement('p');
+      empty.className = 'section-note med-empty-note';
+      empty.style.margin = '0';
+      empty.textContent = settings.assistMode
+        ? 'まだ くすりが とうろく されていないよ（せっていから ついかしてね）'
+        : '頓服薬が未登録です。「⚙️ 設定」から登録してください。';
+      grid.appendChild(empty);
+      return;
+    }
+    for (var i = 0; i < settings.medicationList.length; i++) {
+      (function (item) {
+        var label = document.createElement('label');
+        label.className = 'check-chip';
+        if (currentForm.medications.indexOf(item) !== -1) label.classList.add('checked');
+        var input = document.createElement('input');
+        input.type = 'checkbox';
+        input.checked = currentForm.medications.indexOf(item) !== -1;
+        input.addEventListener('change', function () {
+          var idx = currentForm.medications.indexOf(item);
+          if (input.checked && idx === -1) currentForm.medications.push(item);
+          else if (!input.checked && idx !== -1) currentForm.medications.splice(idx, 1);
+          renderMedicationGrid();
+        });
+        label.appendChild(input);
+        var span = document.createElement('span');
+        span.textContent = item;
+        label.appendChild(span);
+        grid.appendChild(label);
+      })(settings.medicationList[i]);
+    }
+  }
+
+  /* ===== 頓服薬の事前登録・削除（設定画面の管理UI） ===== */
+  function renderMedManageList() {
+    try {
+      var wrap = safeGetEl('medManageList');
+      if (!wrap) return;
+      wrap.innerHTML = '';
+      if (!settings.medicationList.length) {
+        var empty = document.createElement('p');
+        empty.className = 'section-note med-empty-note';
+        empty.style.margin = '0';
+        empty.textContent = 'まだ頓服薬が登録されていません。下から追加してください。';
+        wrap.appendChild(empty);
+        return;
+      }
+      for (var i = 0; i < settings.medicationList.length; i++) {
+        (function (item) {
+          var chip = document.createElement('span');
+          chip.className = 'med-manage-chip';
+          var textNode = document.createTextNode(item + ' ');
+          chip.appendChild(textNode);
+          var delBtn = document.createElement('button');
+          delBtn.type = 'button';
+          delBtn.setAttribute('aria-label', item + 'を削除');
+          delBtn.textContent = '×';
+          delBtn.addEventListener('click', function () {
+            try {
+              if (!window.confirm('「' + item + '」を削除しますか？')) return;
+              settings.medicationList = settings.medicationList.filter(function (m) { return m !== item; });
+              currentForm.medications = currentForm.medications.filter(function (m) { return m !== item; });
+              saveSettings(settings);
+              renderMedManageList();
+              renderMedicationGrid();
+            } catch (e) { /* noop */ }
+          });
+          chip.appendChild(delBtn);
+          wrap.appendChild(chip);
+        })(settings.medicationList[i]);
+      }
+    } catch (e) { /* noop */ }
+  }
+  var medCustomAddBtn = safeGetEl('medCustomAddBtn');
+  if (medCustomAddBtn) medCustomAddBtn.addEventListener('click', function () {
+    try {
+      var input = safeGetEl('medCustomInput');
+      if (!input) return;
+      var val = (input.value || '').trim();
+      if (!val) return;
+      if (settings.medicationList.indexOf(val) === -1) {
+        settings.medicationList.push(val);
+        saveSettings(settings);
+      }
+      input.value = '';
+      renderMedManageList();
+      renderMedicationGrid();
+      showToast('頓服薬を登録しました');
+    } catch (e) { /* noop */ }
+  });
+
   function renderWeatherGrid() {
     var grid = safeGetEl('weatherGrid');
     if (!grid) return;
@@ -1289,12 +1424,13 @@ document.addEventListener('DOMContentLoaded', function () {
   setDatetimeNow();
 
   function resetForm(keepDatetime) {
-    currentForm = { part: null, side: null, symptoms: [], intensity: null, coping: [], weather: null, memo: '' };
+    currentForm = { part: null, side: null, symptoms: [], intensity: null, coping: [], medications: [], weather: null, memo: '' };
     if (!keepDatetime) setDatetimeNow();
     if (memoInput) memoInput.value = '';
     renderSelectedPartDisplay();
     renderIntensityGrid();
     renderCopingGrid();
+    renderMedicationGrid();
     renderWeatherGrid();
   }
 
@@ -1311,6 +1447,7 @@ document.addEventListener('DOMContentLoaded', function () {
       symptoms: Array.isArray(last.symptoms) ? last.symptoms.slice() : [],
       intensity: (typeof last.intensity === 'number') ? last.intensity : null,
       coping: Array.isArray(last.coping) ? last.coping.slice() : [],
+      medications: Array.isArray(last.medications) ? last.medications.slice() : [],
       weather: last.weather || null,
       memo: ''
     };
@@ -1318,6 +1455,7 @@ document.addEventListener('DOMContentLoaded', function () {
     renderSelectedPartDisplay();
     renderIntensityGrid();
     renderCopingGrid();
+    renderMedicationGrid();
     renderWeatherGrid();
     showToast('前回の記録を複製しました。必要なら調整して保存してください');
   });
@@ -1339,6 +1477,7 @@ document.addEventListener('DOMContentLoaded', function () {
         symptoms: currentForm.symptoms.slice(),
         intensity: currentForm.intensity,
         coping: currentForm.coping.slice(),
+        medications: currentForm.medications.slice(),
         weather: currentForm.weather,
         memo: currentForm.memo || ''
       };
@@ -1393,6 +1532,14 @@ document.addEventListener('DOMContentLoaded', function () {
           copingText.className = 'history-time';
           copingText.textContent = '対処: ' + rec.coping.join('、');
           main.appendChild(copingText);
+        }
+        if (rec.medications && rec.medications.length) {
+          var medText = document.createElement('div');
+          medText.className = 'history-time';
+          medText.style.fontWeight = '700';
+          medText.style.color = 'var(--color-accent-dark)';
+          medText.textContent = '（服薬：' + rec.medications.join('、') + '）';
+          main.appendChild(medText);
         }
         if (rec.memo) {
           var memoText = document.createElement('div');
@@ -1568,6 +1715,11 @@ document.addEventListener('DOMContentLoaded', function () {
           ctx.arc(qx, qy, 3.2, 0, Math.PI * 2);
           ctx.fillStyle = color;
           ctx.fill();
+          /* 服薬（頓服薬）を記録したタイミングにマークを表示。色だけに頼らず絵文字でも判別できるようにする */
+          if (points[j].medications && points[j].medications.length) {
+            ctx.font = '11px sans-serif';
+            ctx.fillText('💊', qx - 6, qy - 8);
+          }
         }
       }
 
@@ -1651,8 +1803,8 @@ document.addEventListener('DOMContentLoaded', function () {
     var thead = document.createElement('thead');
     var headRow = document.createElement('tr');
     (settings.assistMode
-      ? ['いつ', 'ぶい', 'どんな かんじ', 'つよさ', 'やったこと', 'おてんき']
-      : ['日時', '部位', '症状', '強さ', '対処法', '天気']
+      ? ['いつ', 'ぶい', 'どんな かんじ', 'つよさ', 'やったこと', 'のんだ くすり', 'おてんき']
+      : ['日時', '部位', '症状', '強さ', '対処法', '服薬', '天気']
     ).forEach(function (h) {
       var th = document.createElement('th');
       th.textContent = h;
@@ -1675,6 +1827,7 @@ document.addEventListener('DOMContentLoaded', function () {
         (r.symptoms && r.symptoms.length) ? r.symptoms.join('、') : '-',
         String(r.intensity),
         (r.coping && r.coping.length) ? r.coping.join('、') : '-',
+        (r.medications && r.medications.length) ? ('（服薬：' + r.medications.join('、') + '）') : '-',
         r.weather || '-'
       ].forEach(function (val) {
         var td = document.createElement('td');
@@ -1844,6 +1997,8 @@ document.addEventListener('DOMContentLoaded', function () {
       applyAssistModeUI();
       syncPasscodeSettingsUI();
       renderCopingGrid();
+      renderMedicationGrid();
+      renderMedManageList();
       renderWeatherGrid();
       renderHistory();
       renderChart();
@@ -1867,7 +2022,7 @@ document.addEventListener('DOMContentLoaded', function () {
   var settingsBtn = safeGetEl('settingsBtn');
   var settingsModal = safeGetEl('settingsModal');
   var settingsCloseBtn = safeGetEl('settingsCloseBtn');
-  if (settingsBtn && settingsModal) settingsBtn.addEventListener('click', function () { settingsModal.classList.add('open'); });
+  if (settingsBtn && settingsModal) settingsBtn.addEventListener('click', function () { settingsModal.classList.add('open'); renderMedManageList(); });
   if (settingsCloseBtn && settingsModal) settingsCloseBtn.addEventListener('click', function () { settingsModal.classList.remove('open'); });
 
   var exportDataBtn = safeGetEl('exportDataBtn');
@@ -1906,7 +2061,7 @@ document.addEventListener('DOMContentLoaded', function () {
             settings = Object.assign(defaultSettings(), parsed.settings);
             saveSettings(settings);
           }
-          renderHistory(); renderChart(); renderReport(); renderCopingGrid(); applyAssistModeUI(); syncPasscodeSettingsUI();
+          renderHistory(); renderChart(); renderReport(); renderCopingGrid(); renderMedicationGrid(); renderMedManageList(); applyAssistModeUI(); syncPasscodeSettingsUI();
           showToast('データを読み込みました');
         } catch (e) { showToast('ファイルの読み込みに失敗しました'); }
       };
@@ -1980,6 +2135,8 @@ document.addEventListener('DOMContentLoaded', function () {
     renderSelectedPartDisplay();
     renderIntensityGrid();
     renderCopingGrid();
+    renderMedicationGrid();
+    renderMedManageList();
     renderWeatherGrid();
     renderHistory();
     renderChart();
