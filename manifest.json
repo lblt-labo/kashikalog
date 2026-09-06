@@ -1,0 +1,26 @@
+{
+  "name": "かしかろぐ｜つらさの可視化＆記録アプリ",
+  "short_name": "かしかろぐ",
+  "description": "医療機関と患者をつなぐ「つらさ」の可視化＆記録アプリ",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#f4f7f8",
+  "theme_color": "#2b6777",
+  "lang": "ja",
+  "icons": [
+    {
+      "src": "./icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
