@@ -199,11 +199,32 @@
   }
   .bodymap-wrap{
     display:flex;
+    align-items:center;
     justify-content:center;
+    gap:0.5rem;
     background:#f0f5f6;
     border-radius:10px;
     padding:0.6rem;
     margin-bottom:0.7rem;
+  }
+  .bodymap-svg-col{flex:1;display:flex;justify-content:center;min-width:0;}
+  .bodymap-side-label{
+    font-weight:800;
+    font-size:0.9rem;
+    color:var(--color-accent-dark);
+    background:#ffffff;
+    border:2px solid var(--color-accent);
+    border-radius:10px;
+    padding:0.5rem 0.35rem;
+    text-align:center;
+    min-width:52px;
+    line-height:1.25;
+    flex-shrink:0;
+  }
+  .assist-mode .bodymap-side-label{
+    font-size:1.3rem;
+    padding:0.7rem 0.5rem;
+    min-width:64px;
   }
   .bodymap-svg{max-width:220px;width:100%;height:auto;touch-action:manipulation;}
   .bodypart{
@@ -552,7 +573,9 @@
     </div>
 
     <div class="bodymap-wrap">
-      <svg id="bodySvgFront" class="bodymap-svg" viewBox="0 0 200 320" role="img" aria-label="人体マップ（正面）">
+      <div class="bodymap-side-label" id="bodyMapLeftLabel" aria-hidden="true"></div>
+      <div class="bodymap-svg-col">
+        <svg id="bodySvgFront" class="bodymap-svg" viewBox="0 0 200 320" role="img" aria-label="人体マップ（正面）">
         <circle class="bodypart" data-part="頭" cx="100" cy="35" r="28"></circle>
         <text class="bodymap-label" data-part="頭" x="100" y="39">頭</text>
         <rect class="bodypart" data-part="首・肩" x="55" y="65" width="90" height="26" rx="10"></rect>
@@ -584,6 +607,8 @@
         <rect class="bodypart" data-part="脚・膝" x="104" y="190" width="34" height="120" rx="14"></rect>
         <text class="bodymap-label" data-part="脚・膝" x="121" y="252">脚・膝</text>
       </svg>
+      </div>
+      <div class="bodymap-side-label" id="bodyMapRightLabel" aria-hidden="true"></div>
     </div>
 
     <div class="extra-parts">
@@ -999,6 +1024,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
     applyI18nText();
     updateBodyMapLabels();
+    updateBodyMapSideLabels();
     renderIntensityGrid();
     renderSelectedPartDisplay();
     renderHistory();
@@ -1022,9 +1048,33 @@ document.addEventListener('DOMContentLoaded', function () {
   var bodyBackTab = safeGetEl('bodyBackTab');
   var bodySvgFront = safeGetEl('bodySvgFront');
   var bodySvgBack = safeGetEl('bodySvgBack');
+  var bodyMapView = 'front';
+
+  /* 人体マップ横の「右・左」方向ラベルを更新する。
+     正面表示では画面の向かって左側＝からだの右（右腕側）、向かって右側＝からだの左（左腕側）。
+     背面表示ではその逆になるため、表裏タブに応じてラベルを切り替え、
+     正面/背面の視点による左右の誤解を防ぐ。 */
+  function updateBodyMapSideLabels() {
+    try {
+      var leftEl = safeGetEl('bodyMapLeftLabel');
+      var rightEl = safeGetEl('bodyMapRightLabel');
+      if (!leftEl || !rightEl) return;
+      var isBack = (bodyMapView === 'back');
+      var screenLeftIsBodySide = isBack ? '左' : '右';
+      var screenRightIsBodySide = isBack ? '右' : '左';
+      function labelText(bodySide) {
+        if (settings.assistMode) return (bodySide === '右') ? 'みぎ' : 'ひだり';
+        var armWord = (bodySide === '右') ? '右腕側' : '左腕側';
+        return bodySide + '（' + armWord + '）';
+      }
+      leftEl.textContent = labelText(screenLeftIsBodySide);
+      rightEl.textContent = labelText(screenRightIsBodySide);
+    } catch (e) { /* noop */ }
+  }
 
   function switchBodyTab(which) {
     if (!bodySvgFront || !bodySvgBack || !bodyFrontTab || !bodyBackTab) return;
+    bodyMapView = which;
     if (which === 'front') {
       bodySvgFront.style.display = ''; bodySvgBack.style.display = 'none';
       bodyFrontTab.setAttribute('aria-pressed', 'true'); bodyBackTab.setAttribute('aria-pressed', 'false');
@@ -1032,6 +1082,7 @@ document.addEventListener('DOMContentLoaded', function () {
       bodySvgFront.style.display = 'none'; bodySvgBack.style.display = '';
       bodyFrontTab.setAttribute('aria-pressed', 'false'); bodyBackTab.setAttribute('aria-pressed', 'true');
     }
+    updateBodyMapSideLabels();
   }
   if (bodyFrontTab) bodyFrontTab.addEventListener('click', function () { switchBodyTab('front'); });
   if (bodyBackTab) bodyBackTab.addEventListener('click', function () { switchBodyTab('back'); });
