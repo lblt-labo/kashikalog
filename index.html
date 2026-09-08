@@ -280,6 +280,24 @@
     flex-wrap:wrap;
     gap:0.4rem;
   }
+  .entries-list{display:flex;flex-direction:column;gap:0.5rem;margin-top:0.7rem;}
+  .entries-empty{font-size:0.85rem;color:var(--color-sub);margin:0;}
+  .entry-card{
+    display:flex;justify-content:space-between;align-items:center;gap:0.5rem;
+    background:#eef6f7;border:1px solid var(--color-accent);border-radius:10px;
+    padding:0.55rem 0.7rem;
+  }
+  .entry-card-main{display:flex;flex-direction:column;gap:0.2rem;font-size:0.85rem;flex:1;min-width:0;}
+  .entry-top{display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;font-weight:800;color:var(--color-accent-dark);}
+  .entry-symptoms{color:var(--color-text);word-break:break-word;}
+  .entry-card-actions{display:flex;gap:0.35rem;flex-shrink:0;}
+  .entry-card-actions button{
+    border:1px solid var(--color-border);background:#fff;border-radius:8px;
+    min-width:40px;min-height:40px;cursor:pointer;font-size:1rem;
+  }
+  .assist-mode .entry-card{padding:0.8rem 0.9rem;}
+  .assist-mode .entry-card-main{font-size:1.05rem;}
+  .assist-mode .entry-card-actions button{min-width:52px;min-height:52px;font-size:1.3rem;}
   .chip{
     display:inline-flex;
     align-items:center;
@@ -616,14 +634,19 @@
       <button type="button" data-part="行動" data-normal="🌀 行動・衝動" data-assist="🌀 やりたくなってしまうこと">🌀 行動・衝動</button>
     </div>
 
-    <div class="selected-part-display" id="selectedPartDisplay">
-      <span class="section-note" style="margin:0;" data-normal="部位・症状は未選択です（部位ボタンをタップ）" data-assist="ぶいを えらんでね（したの え を タップ）">部位・症状は未選択です（部位ボタンをタップ）</span>
+    <div class="selected-part-display no-print" id="selectedPartDisplay" style="display:none;"></div>
+    <div id="entriesList" class="entries-list"></div>
+    <div class="top-actions" style="margin-top:0.6rem;">
+      <button type="button" class="btn btn-ghost" id="clearEntriesBtn" data-normal="🔙 イラストに戻る（すべて取り消す）" data-assist="🔙 えに もどる（ぜんぶ けす）">🔙 イラストに戻る（すべて取り消す）</button>
     </div>
 
     <div style="margin-top:1.1rem;">
-      <h2 data-normal="つらさの強さ" data-assist="どれくらい いたい？（つらい？）">つらさの強さ</h2>
-      <p class="section-note" data-normal="1（軽い・水色）〜 10（強い・濃い赤）" data-assist="1（かるい）〜 10（つよい）">1（軽い・水色）〜 10（強い・濃い赤）</p>
+      <h2 data-normal="つらさの強さ（基本値・一括反映用）" data-assist="どれくらい いたい？（つらい？）">つらさの強さ（基本値・一括反映用）</h2>
+      <p class="section-note" data-normal="1（軽い・水色）〜 10（強い・濃い赤）。部位ごとに個別設定もできます。" data-assist="1（かるい）〜 10（つよい）。ぶいごとに べつべつにも できるよ。">1（軽い・水色）〜 10（強い・濃い赤）。部位ごとに個別設定もできます。</p>
       <div class="intensity-grid" id="intensityGrid"></div>
+      <div class="top-actions" style="margin-top:0.5rem;">
+        <button type="button" class="btn btn-outline" id="applyIntensityAllBtn" data-normal="🔁 選択中の全部位に反映" data-assist="🔁 ぜんぶ おなじ つよさに する">🔁 選択中の全部位に反映</button>
+      </div>
     </div>
 
     <div style="margin-top:1.1rem;">
@@ -706,8 +729,13 @@
       <input type="text" id="symptomCustomInput" placeholder="症状を追加（例：肩甲骨の痛み）" data-normal-placeholder="症状を追加（例：肩甲骨の痛み）" data-assist-placeholder="ついか する（れい：かたが いたい）">
       <button type="button" class="btn btn-ghost" id="symptomCustomAddBtn" data-normal="追加" data-assist="ついか">追加</button>
     </div>
-    <div class="modal-close-row">
-      <button type="button" class="btn btn-primary" id="symptomModalDoneBtn" data-normal="選択を確定" data-assist="きめる">選択を確定</button>
+    <div style="margin-top:0.9rem;">
+      <p class="section-note" style="margin:0 0 0.4rem;" data-normal="この部位のつらさ" data-assist="ここの いたさ">この部位のつらさ</p>
+      <div class="intensity-grid" id="modalIntensityGrid"></div>
+    </div>
+    <div class="modal-close-row" style="display:flex;justify-content:space-between;gap:0.5rem;flex-wrap:wrap;">
+      <button type="button" class="btn btn-outline" id="symptomModalCancelBtn" data-normal="🔙 イラストに戻る（取り消す）" data-assist="🔙 えに もどる（やめる）">🔙 イラストに戻る（取り消す）</button>
+      <button type="button" class="btn btn-primary" id="symptomModalDoneBtn" data-normal="この部位を追加する" data-assist="ついかする">この部位を追加する</button>
     </div>
   </div>
 </div>
@@ -960,10 +988,8 @@ document.addEventListener('DOMContentLoaded', function () {
      状態
   ========================================================= */
   var currentForm = {
-    part: null,
-    side: null,
-    symptoms: [],
-    intensity: null,
+    entries: [],      // 複数部位・症状を同時に保持: [{part, side, symptoms:[], intensity}, ...]
+    intensity: null,  // 新しい部位を追加する際の基本値・一括反映用の値
     coping: [],
     medications: [],
     weather: null,
@@ -972,8 +998,22 @@ document.addEventListener('DOMContentLoaded', function () {
   var symptomModalPart = null;
   var symptomModalTempSelection = [];
   var symptomModalTempSide = null;
+  var symptomModalTempIntensity = null;
+  var symptomModalEditIndex = -1; // -1: 新規追加, 0以上: currentForm.entriesの該当インデックスを編集
   var chartMode = 'overlay'; // 'overlay' | 'bypart'
   var chartByPartSelected = null;
+
+  /* 旧形式(単一部位)のレコードとの互換性を保つためのヘルパー。
+     新形式(entries配列)があればそれを、なければ旧フィールドから1件のエントリーを組み立てて返す。 */
+  function getEntries(rec) {
+    try {
+      if (rec && Array.isArray(rec.entries) && rec.entries.length) return rec.entries;
+      if (rec && rec.part) {
+        return [{ part: rec.part, side: rec.side || null, symptoms: rec.symptoms || [], intensity: rec.intensity }];
+      }
+      return [];
+    } catch (e) { return []; }
+  }
 
   /* =========================================================
      テキスト簡易化（data-normal / data-assist 属性の一斉切替）
@@ -1026,7 +1066,7 @@ document.addEventListener('DOMContentLoaded', function () {
     updateBodyMapLabels();
     updateBodyMapSideLabels();
     renderIntensityGrid();
-    renderSelectedPartDisplay();
+    renderEntriesList();
     renderHistory();
     renderChart();
     renderReport();
@@ -1114,59 +1154,100 @@ document.addEventListener('DOMContentLoaded', function () {
 
   function highlightSelectedParts() {
     try {
+      var selectedParts = {};
+      for (var k = 0; k < currentForm.entries.length; k++) selectedParts[currentForm.entries[k].part] = true;
       var allParts = document.querySelectorAll('.bodypart');
       for (var i = 0; i < allParts.length; i++) {
         var p = allParts[i].getAttribute('data-part');
-        if (currentForm.part === p) allParts[i].classList.add('selected');
+        if (selectedParts[p]) allParts[i].classList.add('selected');
         else allParts[i].classList.remove('selected');
       }
       var allExtra = document.querySelectorAll('.extra-parts button');
       for (var j = 0; j < allExtra.length; j++) {
         var ep = allExtra[j].getAttribute('data-part');
-        if (currentForm.part === ep) allExtra[j].classList.add('selected');
+        if (selectedParts[ep]) allExtra[j].classList.add('selected');
         else allExtra[j].classList.remove('selected');
       }
     } catch (e) { /* noop */ }
   }
 
-  function renderSelectedPartDisplay() {
-    var disp = safeGetEl('selectedPartDisplay');
-    if (!disp) return;
-    disp.innerHTML = '';
-    if (!currentForm.part) {
-      var span = document.createElement('span');
-      span.className = 'section-note';
-      span.style.margin = '0';
-      span.textContent = settings.assistMode ? 'ぶいを えらんでね（したの え を タップ）' : '部位・症状は未選択です（部位ボタンをタップ）';
-      disp.appendChild(span);
+  /* 複数選択した部位・症状の一覧（「選択中の症状リスト」）を描画する。
+     各カードには編集(✏️)・削除(🗑)ボタンを備え、部位を追加し続けながら
+     個別に強さを調整・やり直しできるようにする。 */
+  function renderEntriesList() {
+    var wrap = safeGetEl('entriesList');
+    if (!wrap) return;
+    wrap.innerHTML = '';
+    if (!currentForm.entries.length) {
+      var empty = document.createElement('p');
+      empty.className = 'entries-empty';
+      empty.textContent = settings.assistMode
+        ? 'ぶいを えらんでね（したの え を タップ）'
+        : '部位・症状は未選択です（からだの絵をタップして追加してください）';
+      wrap.appendChild(empty);
+      highlightSelectedParts();
       return;
     }
-    var partChip = document.createElement('span');
-    partChip.className = 'chip';
-    var sideText = currentForm.side ? (sideLabel(currentForm.side) + '・') : '';
-    var partLabelText = sideText + partLabel(currentForm.part);
-    partChip.textContent = PART_SYMBOLS[currentForm.part] ? (PART_SYMBOLS[currentForm.part] + ' ' + partLabelText) : partLabelText;
-    disp.appendChild(partChip);
-    for (var i = 0; i < currentForm.symptoms.length; i++) {
-      (function (sym) {
-        var chip = document.createElement('span');
-        chip.className = 'chip';
-        var textNode = document.createTextNode(sym + ' ');
-        chip.appendChild(textNode);
-        var removeBtn = document.createElement('button');
-        removeBtn.type = 'button';
-        removeBtn.setAttribute('aria-label', sym + 'を削除');
-        removeBtn.textContent = '×';
-        removeBtn.addEventListener('click', function () {
-          currentForm.symptoms = currentForm.symptoms.filter(function (s) { return s !== sym; });
-          renderSelectedPartDisplay();
+    for (var i = 0; i < currentForm.entries.length; i++) {
+      (function (entry, idx) {
+        var card = document.createElement('div');
+        card.className = 'entry-card';
+
+        var main = document.createElement('div');
+        main.className = 'entry-card-main';
+
+        var top = document.createElement('div');
+        top.className = 'entry-top';
+        var sideText = entry.side ? (sideLabel(entry.side) + '・') : '';
+        var labelText = sideText + partLabel(entry.part);
+        var labelSpan = document.createElement('span');
+        labelSpan.textContent = PART_SYMBOLS[entry.part] ? (PART_SYMBOLS[entry.part] + ' ' + labelText) : labelText;
+        top.appendChild(labelSpan);
+        var lvSpan = document.createElement('span');
+        lvSpan.textContent = (typeof entry.intensity === 'number') ? ('Lv.' + entry.intensity) : (settings.assistMode ? '(みてい)' : '(未設定)');
+        top.appendChild(lvSpan);
+        main.appendChild(top);
+
+        if (entry.symptoms && entry.symptoms.length) {
+          var symDiv = document.createElement('div');
+          symDiv.className = 'entry-symptoms';
+          symDiv.textContent = entry.symptoms.join('、');
+          main.appendChild(symDiv);
+        }
+        card.appendChild(main);
+
+        var actions = document.createElement('div');
+        actions.className = 'entry-card-actions';
+        var editBtn = document.createElement('button');
+        editBtn.type = 'button';
+        editBtn.setAttribute('aria-label', (entry.part) + 'の内容を編集');
+        editBtn.textContent = '✏️';
+        editBtn.addEventListener('click', function () { openSymptomModal(entry.part, idx); });
+        actions.appendChild(editBtn);
+        var delBtn = document.createElement('button');
+        delBtn.type = 'button';
+        delBtn.setAttribute('aria-label', (entry.part) + 'を削除');
+        delBtn.textContent = '🗑';
+        delBtn.addEventListener('click', function () {
+          currentForm.entries.splice(idx, 1);
+          renderEntriesList();
         });
-        chip.appendChild(removeBtn);
-        disp.appendChild(chip);
-      })(currentForm.symptoms[i]);
+        actions.appendChild(delBtn);
+        card.appendChild(actions);
+
+        wrap.appendChild(card);
+      })(currentForm.entries[i], i);
     }
     highlightSelectedParts();
   }
+
+  var clearEntriesBtn = safeGetEl('clearEntriesBtn');
+  if (clearEntriesBtn) clearEntriesBtn.addEventListener('click', function () {
+    if (!currentForm.entries.length) return;
+    if (!window.confirm('選択中の部位・症状をすべて取り消して、イラストの選択に戻りますか？')) return;
+    currentForm.entries = [];
+    renderEntriesList();
+  });
 
   /* ===== 症状選択モーダル ===== */
   var symptomModal = safeGetEl('symptomModal');
@@ -1175,6 +1256,7 @@ document.addEventListener('DOMContentLoaded', function () {
   var symptomCustomInput = safeGetEl('symptomCustomInput');
   var symptomCustomAddBtn = safeGetEl('symptomCustomAddBtn');
   var symptomModalDoneBtn = safeGetEl('symptomModalDoneBtn');
+  var symptomModalCancelBtn = safeGetEl('symptomModalCancelBtn');
   var lateralityRow = safeGetEl('lateralityRow');
 
   function renderLateralityButtons() {
@@ -1198,12 +1280,48 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   }
 
-  function openSymptomModal(part) {
+  /* この部位専用の「つらさの強さ」ピッカー。新規追加時は基本値(currentForm.intensity)を
+     初期選択にし、編集時はそのエントリーの値を初期選択にする。 */
+  function renderModalIntensityGrid() {
+    var grid = safeGetEl('modalIntensityGrid');
+    if (!grid) return;
+    grid.innerHTML = '';
+    for (var i = 1; i <= 10; i++) {
+      (function (val) {
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'intensity-btn';
+        b.style.background = INTENSITY_COLORS[val - 1];
+        b.setAttribute('aria-pressed', symptomModalTempIntensity === val ? 'true' : 'false');
+        var numSpan = document.createElement('span');
+        numSpan.textContent = val;
+        b.appendChild(numSpan);
+        if (settings.assistMode) {
+          var faceSpan = document.createElement('span');
+          faceSpan.className = 'face';
+          faceSpan.textContent = FACES[val - 1];
+          b.appendChild(faceSpan);
+        }
+        b.addEventListener('click', function () {
+          symptomModalTempIntensity = val;
+          renderModalIntensityGrid();
+        });
+        grid.appendChild(b);
+      })(i);
+    }
+  }
+
+  /* 部位をタップして開くモーダル。editIndex省略時(-1)は新規追加、
+     0以上を渡すとcurrentForm.entriesの該当エントリーを編集する。 */
+  function openSymptomModal(part, editIndex) {
     if (!symptomModal) return;
     symptomModalPart = part;
-    symptomModalTempSelection = (currentForm.part === part) ? currentForm.symptoms.slice() : [];
+    symptomModalEditIndex = (typeof editIndex === 'number') ? editIndex : -1;
+    var existing = (symptomModalEditIndex >= 0 && currentForm.entries[symptomModalEditIndex]) ? currentForm.entries[symptomModalEditIndex] : null;
+    symptomModalTempSelection = existing ? existing.symptoms.slice() : [];
     var isLateral = LATERAL_PARTS.indexOf(part) !== -1;
-    symptomModalTempSide = (isLateral && currentForm.part === part) ? currentForm.side : null;
+    symptomModalTempSide = existing ? (existing.side || null) : null;
+    symptomModalTempIntensity = existing ? existing.intensity : currentForm.intensity;
     if (lateralityRow) lateralityRow.style.display = isLateral ? '' : 'none';
     renderLateralityButtons();
     if (symptomModalTitle) {
@@ -1211,7 +1329,14 @@ document.addEventListener('DOMContentLoaded', function () {
         ? ('どんな かんじ？（' + partLabel(part) + '）')
         : ('症状を選択（' + part + '）');
     }
+    if (symptomModalDoneBtn) {
+      var isEdit = symptomModalEditIndex >= 0;
+      symptomModalDoneBtn.textContent = settings.assistMode
+        ? (isEdit ? 'なおす' : 'ついかする')
+        : (isEdit ? 'この部位を更新する' : 'この部位を追加する');
+    }
     renderSymptomPickGrid();
+    renderModalIntensityGrid();
     symptomModal.classList.add('open');
   }
   function closeSymptomModal() {
@@ -1254,15 +1379,31 @@ document.addEventListener('DOMContentLoaded', function () {
     } catch (e) { /* noop */ }
   });
   if (symptomModalDoneBtn) symptomModalDoneBtn.addEventListener('click', function () {
-    currentForm.part = symptomModalPart;
-    currentForm.symptoms = symptomModalTempSelection.slice();
-    currentForm.side = (LATERAL_PARTS.indexOf(symptomModalPart) !== -1) ? symptomModalTempSide : null;
-    renderSelectedPartDisplay();
+    if (symptomModalTempIntensity === null || typeof symptomModalTempIntensity === 'undefined') {
+      showToast('つらさの強さを選択してください');
+      return;
+    }
+    var newEntry = {
+      part: symptomModalPart,
+      side: (LATERAL_PARTS.indexOf(symptomModalPart) !== -1) ? symptomModalTempSide : null,
+      symptoms: symptomModalTempSelection.slice(),
+      intensity: symptomModalTempIntensity
+    };
+    if (symptomModalEditIndex >= 0 && currentForm.entries[symptomModalEditIndex]) {
+      currentForm.entries[symptomModalEditIndex] = newEntry;
+    } else {
+      currentForm.entries.push(newEntry);
+    }
+    renderEntriesList();
+    closeSymptomModal();
+  });
+  if (symptomModalCancelBtn) symptomModalCancelBtn.addEventListener('click', function () {
+    /* 追加・編集内容を保存せずにイラスト（部位選択）へ戻る */
     closeSymptomModal();
   });
 
   /* =========================================================
-     つらさの強さボタン
+     つらさの強さボタン（基本値・一括反映用）
   ========================================================= */
   function renderIntensityGrid() {
     var grid = safeGetEl('intensityGrid');
@@ -1292,6 +1433,25 @@ document.addEventListener('DOMContentLoaded', function () {
       })(i);
     }
   }
+
+  var applyIntensityAllBtn = safeGetEl('applyIntensityAllBtn');
+  if (applyIntensityAllBtn) applyIntensityAllBtn.addEventListener('click', function () {
+    try {
+      if (currentForm.intensity === null || typeof currentForm.intensity === 'undefined') {
+        showToast('先につらさの強さを選んでください');
+        return;
+      }
+      if (!currentForm.entries.length) {
+        showToast('反映する部位がありません');
+        return;
+      }
+      for (var i = 0; i < currentForm.entries.length; i++) {
+        currentForm.entries[i].intensity = currentForm.intensity;
+      }
+      renderEntriesList();
+      showToast('選択中の全部位に反映しました');
+    } catch (e) { /* noop */ }
+  });
 
   /* =========================================================
      コーピング・天気
@@ -1475,10 +1635,10 @@ document.addEventListener('DOMContentLoaded', function () {
   setDatetimeNow();
 
   function resetForm(keepDatetime) {
-    currentForm = { part: null, side: null, symptoms: [], intensity: null, coping: [], medications: [], weather: null, memo: '' };
+    currentForm = { entries: [], intensity: null, coping: [], medications: [], weather: null, memo: '' };
     if (!keepDatetime) setDatetimeNow();
     if (memoInput) memoInput.value = '';
-    renderSelectedPartDisplay();
+    renderEntriesList();
     renderIntensityGrid();
     renderCopingGrid();
     renderMedicationGrid();
@@ -1492,18 +1652,24 @@ document.addEventListener('DOMContentLoaded', function () {
   if (duplicateLastBtn) duplicateLastBtn.addEventListener('click', function () {
     if (!records.length) { showToast('複製できる過去の記録がありません'); return; }
     var last = records[records.length - 1];
+    var lastEntries = getEntries(last);
     currentForm = {
-      part: last.part || null,
-      side: last.side || null,
-      symptoms: Array.isArray(last.symptoms) ? last.symptoms.slice() : [],
-      intensity: (typeof last.intensity === 'number') ? last.intensity : null,
+      entries: lastEntries.map(function (e) {
+        return {
+          part: e.part,
+          side: e.side || null,
+          symptoms: Array.isArray(e.symptoms) ? e.symptoms.slice() : [],
+          intensity: (typeof e.intensity === 'number') ? e.intensity : null
+        };
+      }),
+      intensity: null,
       coping: Array.isArray(last.coping) ? last.coping.slice() : [],
       medications: Array.isArray(last.medications) ? last.medications.slice() : [],
       weather: last.weather || null,
       memo: ''
     };
     setDatetimeNow();
-    renderSelectedPartDisplay();
+    renderEntriesList();
     renderIntensityGrid();
     renderCopingGrid();
     renderMedicationGrid();
@@ -1517,16 +1683,19 @@ document.addEventListener('DOMContentLoaded', function () {
   var saveRecordBtn = safeGetEl('saveRecordBtn');
   if (saveRecordBtn) saveRecordBtn.addEventListener('click', function () {
     try {
-      if (!currentForm.part) { showToast('部位を選択してください'); return; }
-      if (currentForm.intensity === null) { showToast('つらさの強さを選択してください'); return; }
+      if (!currentForm.entries.length) { showToast('部位を選択して追加してください'); return; }
       var dtVal = recordDatetimeInput && recordDatetimeInput.value ? recordDatetimeInput.value : nowLocalInputValue();
       var rec = {
         id: 'r_' + Date.now() + '_' + Math.floor(Math.random() * 10000),
         datetime: dtVal,
-        part: currentForm.part,
-        side: currentForm.side || null,
-        symptoms: currentForm.symptoms.slice(),
-        intensity: currentForm.intensity,
+        entries: currentForm.entries.map(function (e) {
+          return {
+            part: e.part,
+            side: e.side || null,
+            symptoms: e.symptoms.slice(),
+            intensity: e.intensity
+          };
+        }),
         coping: currentForm.coping.slice(),
         medications: currentForm.medications.slice(),
         weather: currentForm.weather,
@@ -1566,18 +1735,27 @@ document.addEventListener('DOMContentLoaded', function () {
         item.className = 'history-item';
         var main = document.createElement('div');
         main.className = 'history-main';
-        var badge = document.createElement('span');
-        badge.className = 'history-badge';
-        badge.style.background = PART_COLORS[rec.part] || '#607d8b';
-        var sideTxt = rec.side ? (sideLabel(rec.side) + '・') : '';
-        badge.textContent = (PART_SYMBOLS[rec.part] || '') + ' ' + sideTxt + partLabel(rec.part);
-        main.appendChild(badge);
-        var boldText = document.createElement('strong');
-        boldText.textContent = 'Lv.' + rec.intensity;
-        main.appendChild(boldText);
-        var symText = document.createElement('div');
-        symText.textContent = (rec.symptoms && rec.symptoms.length) ? rec.symptoms.join('、') : '（症状未指定）';
-        main.appendChild(symText);
+
+        var entries = getEntries(rec);
+        for (var ei = 0; ei < entries.length; ei++) {
+          var entry = entries[ei];
+          var entryRow = document.createElement('div');
+          entryRow.style.marginBottom = '0.3rem';
+          var badge = document.createElement('span');
+          badge.className = 'history-badge';
+          badge.style.background = PART_COLORS[entry.part] || '#607d8b';
+          var sideTxt = entry.side ? (sideLabel(entry.side) + '・') : '';
+          badge.textContent = (PART_SYMBOLS[entry.part] || '') + ' ' + sideTxt + partLabel(entry.part);
+          entryRow.appendChild(badge);
+          var boldText = document.createElement('strong');
+          boldText.textContent = 'Lv.' + entry.intensity;
+          entryRow.appendChild(boldText);
+          var symText = document.createElement('div');
+          symText.textContent = (entry.symptoms && entry.symptoms.length) ? entry.symptoms.join('、') : '（症状未指定）';
+          entryRow.appendChild(symText);
+          main.appendChild(entryRow);
+        }
+
         if (rec.coping && rec.coping.length) {
           var copingText = document.createElement('div');
           copingText.className = 'history-time';
@@ -1628,8 +1806,31 @@ document.addEventListener('DOMContentLoaded', function () {
 
   function getAllPartsInUse() {
     var set = {};
-    for (var i = 0; i < records.length; i++) set[records[i].part] = true;
+    for (var i = 0; i < records.length; i++) {
+      var entries = getEntries(records[i]);
+      for (var j = 0; j < entries.length; j++) set[entries[j].part] = true;
+    }
     return Object.keys(set);
+  }
+
+  /* 1レコードに複数の部位・症状が含まれるため、グラフ描画用に
+     「日時＋部位ごとの強さ」の点の配列へ展開（フラット化）する。 */
+  function flattenRecordsToPoints() {
+    var pts = [];
+    for (var i = 0; i < records.length; i++) {
+      var rec = records[i];
+      var entries = getEntries(rec);
+      for (var j = 0; j < entries.length; j++) {
+        pts.push({
+          datetime: rec.datetime,
+          part: entries[j].part,
+          side: entries[j].side || null,
+          intensity: entries[j].intensity,
+          medications: rec.medications || []
+        });
+      }
+    }
+    return pts;
   }
 
   function refreshByPartSelectOptions() {
@@ -1695,7 +1896,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
       if (legend) legend.innerHTML = '';
 
-      if (!records.length) {
+      var flatPoints = flattenRecordsToPoints();
+
+      if (!flatPoints.length) {
         ctx.fillStyle = '#8a9a9e';
         ctx.font = '13px sans-serif';
         ctx.fillText('記録が増えると、ここに推移グラフが表示されます', 16, cssHeight / 2);
@@ -1703,7 +1906,7 @@ document.addEventListener('DOMContentLoaded', function () {
         return;
       }
 
-      var sorted = records.slice().sort(function (a, b) { return new Date(a.datetime) - new Date(b.datetime); });
+      var sorted = flatPoints.slice().sort(function (a, b) { return new Date(a.datetime) - new Date(b.datetime); });
       var minTime = new Date(sorted[0].datetime).getTime();
       var maxTime = new Date(sorted[sorted.length - 1].datetime).getTime();
       if (maxTime === minTime) maxTime = minTime + 1000 * 60 * 60 * 24;
@@ -1840,11 +2043,16 @@ document.addEventListener('DOMContentLoaded', function () {
     var sorted = records.slice().sort(function (a, b) { return new Date(a.datetime) - new Date(b.datetime); });
     var first = formatDisplayDate(sorted[0].datetime);
     var last = formatDisplayDate(sorted[sorted.length - 1].datetime);
-    var avg = (sorted.reduce(function (s, r) { return s + r.intensity; }, 0) / sorted.length).toFixed(1);
-    var max = Math.max.apply(null, sorted.map(function (r) { return r.intensity; }));
+    var allIntensities = [];
+    for (var si = 0; si < sorted.length; si++) {
+      var ents = getEntries(sorted[si]);
+      for (var sj = 0; sj < ents.length; sj++) allIntensities.push(ents[sj].intensity);
+    }
+    var avg = allIntensities.length ? (allIntensities.reduce(function (s, v) { return s + v; }, 0) / allIntensities.length).toFixed(1) : '-';
+    var max = allIntensities.length ? Math.max.apply(null, allIntensities) : '-';
 
     var summaryP = document.createElement('p');
-    summaryP.innerHTML = '記録期間：' + first + '　〜　' + last + '<br>記録件数：' + sorted.length + '件　／　平均つらさ：' + avg + '　／　最大つらさ：' + max;
+    summaryP.innerHTML = '記録期間：' + first + '　〜　' + last + '<br>記録件数：' + sorted.length + '件（のべ' + allIntensities.length + '部位）　／　平均つらさ：' + avg + '　／　最大つらさ：' + max;
     el.appendChild(summaryP);
 
     var table = document.createElement('table');
@@ -1867,27 +2075,31 @@ document.addEventListener('DOMContentLoaded', function () {
     thead.appendChild(headRow);
     table.appendChild(thead);
     var tbody = document.createElement('tbody');
-    var recentForTable = sorted.slice(-30);
+    var recentForTable = sorted.slice(-20);
     for (var i = 0; i < recentForTable.length; i++) {
       var r = recentForTable[i];
-      var tr = document.createElement('tr');
-      var sideTxt = r.side ? (sideLabel(r.side) + '・') : '';
-      [
-        formatDisplayDate(r.datetime),
-        sideTxt + partLabel(r.part),
-        (r.symptoms && r.symptoms.length) ? r.symptoms.join('、') : '-',
-        String(r.intensity),
-        (r.coping && r.coping.length) ? r.coping.join('、') : '-',
-        (r.medications && r.medications.length) ? ('（服薬：' + r.medications.join('、') + '）') : '-',
-        r.weather || '-'
-      ].forEach(function (val) {
-        var td = document.createElement('td');
-        td.textContent = val;
-        td.style.border = '1px solid #ccc';
-        td.style.padding = '4px 6px';
-        tr.appendChild(td);
-      });
-      tbody.appendChild(tr);
+      var entries = getEntries(r);
+      for (var ei = 0; ei < entries.length; ei++) {
+        var entry = entries[ei];
+        var tr = document.createElement('tr');
+        var sideTxt = entry.side ? (sideLabel(entry.side) + '・') : '';
+        [
+          formatDisplayDate(r.datetime),
+          sideTxt + partLabel(entry.part),
+          (entry.symptoms && entry.symptoms.length) ? entry.symptoms.join('、') : '-',
+          String(entry.intensity),
+          (r.coping && r.coping.length) ? r.coping.join('、') : '-',
+          (r.medications && r.medications.length) ? ('（服薬：' + r.medications.join('、') + '）') : '-',
+          r.weather || '-'
+        ].forEach(function (val) {
+          var td = document.createElement('td');
+          td.textContent = val;
+          td.style.border = '1px solid #ccc';
+          td.style.padding = '4px 6px';
+          tr.appendChild(td);
+        });
+        tbody.appendChild(tr);
+      }
     }
     table.appendChild(tbody);
     el.appendChild(table);
@@ -2045,12 +2257,10 @@ document.addEventListener('DOMContentLoaded', function () {
       isLocked = false;
       var overlay = safeGetEl('lockOverlay');
       if (overlay) overlay.style.display = 'none';
+      resetForm(false);
       applyAssistModeUI();
       syncPasscodeSettingsUI();
-      renderCopingGrid();
-      renderMedicationGrid();
       renderMedManageList();
-      renderWeatherGrid();
       renderHistory();
       renderChart();
       renderReport();
@@ -2183,7 +2393,7 @@ document.addEventListener('DOMContentLoaded', function () {
   try {
     applyAssistModeUI();
     syncPasscodeSettingsUI();
-    renderSelectedPartDisplay();
+    renderEntriesList();
     renderIntensityGrid();
     renderCopingGrid();
     renderMedicationGrid();
